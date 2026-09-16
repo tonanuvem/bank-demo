@@ -28,7 +28,7 @@ import { faAngleDown, faAngleUp } from "@fortawesome/free-solid-svg-icons";
 import "leaflet/dist/leaflet.css";
 import "../index.css";
 import mapIcon from "../assets/coin-side.png";
-import mapImg from "../assets/atm.png";
+import mapImg from "../assets/atm.webp";
 import { traduzirMensagem } from "../i18n/rotulos";
 
 const AtmScreen = () => {
