@@ -20,6 +20,12 @@ import { storeTransaction } from "../slices/transactionSlice";
 import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import "../index.css";
+import {
+  traduzirMensagem,
+  traduzir,
+  tiposDeTransacao,
+  formatarData,
+} from "../i18n/rotulos";
 
 const TransactionScreen = () => {
   const dispatch = useDispatch();
@@ -46,7 +52,7 @@ const TransactionScreen = () => {
       dispatch(storeTransaction(res));
       setHistory(res.response);
     } catch (err) {
-      toast.error(err?.data?.message || err.error, {
+      toast.error(traduzirMensagem(err?.data?.message || err.error), {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -72,7 +78,7 @@ const TransactionScreen = () => {
       fetchAccounts();
     } catch (err) {
       console.log(err);
-      toast.error("Error in fetching accounts!", {
+      toast.error("Erro ao carregar as contas!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -97,7 +103,7 @@ const TransactionScreen = () => {
               onChange={fetchHistory}
               className="py-3 px-2 text-center"
             >
-              <option value="Select Account">Select Account</option>
+              <option value="Select Account">Selecione a conta</option>
               {allAccounts.map((account) => (
                 <option
                   key={account.account_number}
@@ -122,28 +128,28 @@ const TransactionScreen = () => {
               className="bg-dark text-white"
               style={{ padding: "2vh" }}
             >
-              Sender Account
+              Conta de origem
             </th>
             <th
               scope="col"
               className="bg-dark text-white"
               style={{ padding: "2vh" }}
             >
-              Amount
+              Valor
             </th>
             <th
               scope="col"
               className="bg-dark text-white"
               style={{ padding: "2vh" }}
             >
-              Details
+              Detalhes
             </th>
             <th
               scope="col"
               className="bg-dark text-white"
               style={{ padding: "2vh" }}
             >
-              Type
+              Tipo
             </th>
           </tr>
         </MDBTableHead>
@@ -160,7 +166,7 @@ const TransactionScreen = () => {
                   </td>
                   <td className="text-center">
                     <p className="fw-normal mb-1">
-                      {transaction.time_stamp.substring(0, 10)}
+                      {formatarData(transaction.time_stamp)}
                     </p>
                     <p className="text-muted mb-0">{transaction.reason}</p>
                   </td>
@@ -171,7 +177,7 @@ const TransactionScreen = () => {
                       }
                       pill
                     >
-                      {transaction.type}
+                      {traduzir(transaction.type, tiposDeTransacao)}
                     </MDBBadge>
                   </td>
                 </tr>
@@ -180,13 +186,13 @@ const TransactionScreen = () => {
           ) : selectedAccount ? (
             <tr>
               <td colSpan={4} className="text-center">
-                No transactions found.
+                Nenhuma transação encontrada.
               </td>
             </tr>
           ) : (
             <tr>
               <td colSpan={4} className="text-center">
-                Please select an account.
+                Selecione uma conta.
               </td>
             </tr>
           )}

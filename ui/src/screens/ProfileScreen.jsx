@@ -14,6 +14,7 @@ import Loader from "../components/Loader";
 import { useUpdateUserMutation } from "../slices/usersApiSlice";
 import { setCredentials } from "../slices/authSlice";
 import "../index.css";
+import { traduzirMensagem } from "../i18n/rotulos";
 
 const ProfileScreen = () => {
   const [email, setEmail] = useState("");
@@ -36,7 +37,7 @@ const ProfileScreen = () => {
   const submitHandler = async (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error("As senhas não coincidem");
     } else {
       try {
         const res = await updateProfile({
@@ -46,7 +47,7 @@ const ProfileScreen = () => {
           // token: Cookies.get("jwt"),
         }).unwrap();
         dispatch(setCredentials(res));
-        toast.success("Your profile has been updated", {
+        toast.success("Seus dados foram atualizados", {
           className: "toast-container-custom",
           autoClose: 500,
           hideProgressBar: true,
@@ -58,7 +59,7 @@ const ProfileScreen = () => {
         });
         navigate("/");
       } catch (err) {
-        toast.error(err?.data?.message || err.error, {
+        toast.error(traduzirMensagem(err?.data?.message || err.error), {
           className: "toast-container-custom",
           autoClose: 500,
           hideProgressBar: true,
@@ -81,50 +82,50 @@ const ProfileScreen = () => {
           paddingBottom: "1.5vh",
         }}
       >
-        UPDATE &nbsp; DETAILS
+        ATUALIZAR &nbsp; DADOS
       </h4>
 
       <Form onSubmit={submitHandler}>
         <Form.Group className="my-4" controlId="name">
-          <Form.Label>Name</Form.Label>
+          <Form.Label>Nome</Form.Label>
           <Form.Control
             type="name"
-            placeholder="Enter name"
+            placeholder="Informe seu nome"
             value={name}
             onChange={(e) => setName(e.target.value)}
           ></Form.Control>
         </Form.Group>
         <Form.Group className="my-4" controlId="email">
-          <Form.Label>Email Address</Form.Label>
+          <Form.Label>E-mail</Form.Label>
           <Form.Control
             type="email"
-            placeholder="Enter email"
+            placeholder="Informe seu e-mail"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           ></Form.Control>
         </Form.Group>
         <Form.Group className="my-4" controlId="password">
-          <Form.Label>Password</Form.Label>
+          <Form.Label>Senha</Form.Label>
           <Form.Control
             type="password"
-            placeholder="Enter new password"
+            placeholder="Nova senha"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           ></Form.Control>
         </Form.Group>
 
         <Form.Group className="my-4" controlId="confirmPassword">
-          <Form.Label>Confirm Password</Form.Label>
+          <Form.Label>Confirme a senha</Form.Label>
           <Form.Control
             type="password"
-            placeholder="Confirm new password"
+            placeholder="Confirme a nova senha"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           ></Form.Control>
         </Form.Group>
 
         <Button type="submit" variant="dark" className="mt-3">
-          Update
+          Atualizar
         </Button>
 
         {isLoading && <Loader />}

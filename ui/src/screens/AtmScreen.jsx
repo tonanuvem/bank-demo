@@ -29,6 +29,7 @@ import "leaflet/dist/leaflet.css";
 import "../index.css";
 import mapIcon from "../assets/coin-side.png";
 import mapImg from "../assets/atm.png";
+import { traduzirMensagem } from "../i18n/rotulos";
 
 const AtmScreen = () => {
   const [location, setLocation] = useState("");
@@ -80,7 +81,7 @@ const AtmScreen = () => {
       console.log(res);
       dispatch(setAtms(res));
       setAtmsList(res);
-      toast.success("Found ATMs near you!", {
+      toast.success("Encontramos caixas eletrônicos perto de você!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -92,7 +93,7 @@ const AtmScreen = () => {
       });
     } catch (err) {
       console.log(err);
-      toast.error(err?.data?.message || err.error, {
+      toast.error(traduzirMensagem(err?.data?.message || err.error), {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -126,7 +127,7 @@ const AtmScreen = () => {
             <Col md={6}>
               <Form.Control
                 type="text"
-                placeholder="Enter enter a ZIP code, or an address, city, and state."
+                placeholder="Informe um CEP, ou endereço, cidade e estado."
                 className="py-3 px-2"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
@@ -138,17 +139,17 @@ const AtmScreen = () => {
                 type="submit"
                 className="w-100 me-3 px-5 py-2"
               >
-                <span style={{ fontSize: "2.5vh" }}>Search</span>
+                <span style={{ fontSize: "2.5vh" }}>Buscar</span>
               </Button>
             </Col>
             <Col md={2} />
           </Row>
           <Row>
             <Col md={7} className="mt-2">
-              {/* Radio button for "Open Now" */}
+              {/* Radio button "Aberto agora" */}
               <Form.Check
                 type="radio"
-                label="Open Now"
+                label="Aberto agora"
                 className="py-2 px-5"
                 name="optionGroup"
                 checked={isOpenNow}
@@ -157,10 +158,10 @@ const AtmScreen = () => {
                   setIsInterPlanetary(false); // Deselect the other radio button
                 }}
               />
-              {/* Radio button for "Inter planet ATMs" */}
+              {/* Radio button "Caixas interplanetarios" */}
               <Form.Check
                 type="radio"
-                label="Inter planet ATMs"
+                label="Caixas interplanetários"
                 className="py-1 px-5"
                 name="optionGroup"
                 checked={isInterPlanetary}
@@ -196,7 +197,7 @@ const AtmScreen = () => {
                         fontSize: "15px",
                       }}
                     >
-                      {atm.isOpen ? "Open" : "Closed"}
+                      {atm.isOpen ? "Aberto" : "Fechado"}
                     </Badge>
                     <div className="flex-grow-1">
                       <Card.Body style={{ marginTop: "0" }}>
@@ -241,7 +242,7 @@ const AtmScreen = () => {
                           <Row>
                             <Col md={6}>
                               <div>
-                                <strong>Number of ATMs: </strong>{" "}
+                                <strong>Caixas encontrados: </strong>{" "}
                                 {selectedCardInfo.numberOfATMs}
                               </div>
                               <div>

@@ -20,6 +20,7 @@ import {
 import Loader from "../components/Loader";
 import AccountDisclosure from "../components/AccountDisclosure";
 import Hero from "../components/Hero";
+import { traduzir, tiposDeConta } from "../i18n/rotulos";
 import "../index.css";
 
 const HomeScreen = () => {
@@ -37,7 +38,7 @@ const HomeScreen = () => {
       fetchAccounts();
     } catch (err) {
       console.log(err);
-      toast.error("Error in fetching accounts!", {
+      toast.error("Erro ao carregar as contas!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -67,7 +68,7 @@ const HomeScreen = () => {
       >
         <Card style={{ marginTop: "2vh" }}>
           <Card.Header className="bg-dark text-uppercase text-white">
-            {account.account_type} Account
+            {traduzir(account.account_type, tiposDeConta)}
             <FontAwesomeIcon
               icon={faArrowRightFromBracket}
               style={{ marginLeft: "1rem" }}
@@ -82,20 +83,20 @@ const HomeScreen = () => {
                       ${account.balance.toFixed(2)}
                     </strong>
                   </div>
-                  <div className="text-muted">Available balance</div>
+                  <div className="text-muted">Saldo disponível</div>
                 </Col>
                 <Col md={1} />
                 <Col md={6}>
                   <div style={{ fontSize: "1.25vh", marginTop: "1vh" }}>
-                    Account Number:
+                    Número da conta:
                     <span className="text-primary">
                       <span>&nbsp;</span>
                       <strong>...{account.account_number.slice(-4)}</strong>
                     </span>
                     <br />
                     <div style={{ fontSize: "1.25vh" }} className="text-muted">
-                      Name: {account.name} <br />
-                      Email ID: {account.email_id}
+                      Nome: {account.name} <br />
+                      E-mail: {account.email_id}
                     </div>
                   </div>
                 </Col>
@@ -109,7 +110,7 @@ const HomeScreen = () => {
               onClick={() => dispatch(selectedAccount(account))}
             >
               <Button variant="dark" className="float-end me-2" size="sm">
-                Transfer money
+                Transferir
               </Button>
             </Link>
           </Card.Footer>
@@ -130,17 +131,17 @@ const HomeScreen = () => {
         <>
           <Card style={{ marginTop: "2vh" }}>
             <Card.Header className="bg-dark text-uppercase text-white">
-              <strong>No Accounts Found</strong>
+              <strong>Nenhuma conta encontrada</strong>
             </Card.Header>
             <Card.Body>
               <Card.Text>
-                Would you like to create a new account with us?
+                Quer abrir uma conta com a gente?
               </Card.Text>
             </Card.Body>
             <Card.Footer>
               <Link to="/new-account" style={{ textDecoration: "none" }}>
                 <Button variant="dark" className="float-end">
-                  Create Account
+                  Abrir conta
                 </Button>
               </Link>
             </Card.Footer>

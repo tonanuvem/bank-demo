@@ -29,6 +29,7 @@ import { getAccounts } from "../slices/accountSlice";
 import { toast } from "react-toastify";
 import Loader from "../components/Loader";
 import "../index.css";
+import { traduzirMensagem } from "../i18n/rotulos";
 
 const TransferScreen = () => {
   let selectedAccount = useSelector((state) => state.account.selected_account);
@@ -88,7 +89,7 @@ const TransferScreen = () => {
     e.preventDefault();
 
     if (accNo === receiverAccNo) {
-      toast.error("Sender and receiver account numbers cannot be same!", {
+      toast.error("A conta de origem e a de destino não podem ser a mesma!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -113,7 +114,7 @@ const TransferScreen = () => {
       const res = await postTransfer(data).unwrap();
       console.log(res);
       dispatch(createTransfer({ ...res }));
-      toast.success("Money transfered!", {
+      toast.success("Transferência realizada!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -126,7 +127,7 @@ const TransferScreen = () => {
       dispatch(deleteSelectedAccount());
       navigate("/");
     } catch (err) {
-      toast.error(err?.data?.message || err.error, {
+      toast.error(traduzirMensagem(err?.data?.message || err.error), {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -142,7 +143,7 @@ const TransferScreen = () => {
   const submitHandlerExternal = async (e) => {
     e.preventDefault();
     if (userInfo.email === receiverEmail) {
-      toast.error("Sender and receiver cannot be same!", {
+      toast.error("O remetente e o destinatário não podem ser o mesmo!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -165,7 +166,7 @@ const TransferScreen = () => {
       const res = await postTransferExternal(data_external).unwrap();
       console.log(res);
       if (res?.response?.approved === false) {
-        toast.error(res.response.message, {
+        toast.error(traduzirMensagem(res.response.message), {
           className: "toast-container-custom",
           autoClose: 500,
           hideProgressBar: true,
@@ -178,7 +179,7 @@ const TransferScreen = () => {
         return;
       }
       else if (res?.response?.approved === true) {
-        toast.success("Money transfered!", {
+        toast.success("Transferência realizada!", {
           className: "toast-container-custom",
           autoClose: false,
           hideProgressBar: true,
@@ -191,7 +192,7 @@ const TransferScreen = () => {
         navigate("/");
       }
     } catch (err) {
-      toast.error(err?.data?.message || err.error, {
+      toast.error(traduzirMensagem(err?.data?.message || err.error), {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -216,7 +217,7 @@ const TransferScreen = () => {
       fetchAccounts();
     } catch (err) {
       console.log(err);
-      toast.error("Error in fetching accounts!", {
+      toast.error("Erro ao carregar as contas!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -239,7 +240,7 @@ const TransferScreen = () => {
           paddingBottom: "2vh",
         }}
       >
-        Transfer Money
+        Transferir
       </h4>
       <Row>
         <Col md={1} />
@@ -265,7 +266,7 @@ const TransferScreen = () => {
                       style={{ width: "100%" }}
                     >
                       <Dropdown.Item eventKey="*required">
-                        Your account type
+                        Seu tipo de conta
                       </Dropdown.Item>
                       <Dropdown.Item eventKey="Savings">Savings</Dropdown.Item>
                       <Dropdown.Item eventKey="Checking">
@@ -275,13 +276,13 @@ const TransferScreen = () => {
                         Investment
                       </Dropdown.Item>
                       <Dropdown.Item eventKey="Money Market">
-                        Money Market
+                        Fundo DI
                       </Dropdown.Item>
                     </DropdownButton>
                   </Col>
                   <Col md={8}>
                     <Form.Label className="mt-3">
-                      Sender account number
+                      Conta de origem
                     </Form.Label>
                     <Form.Select
                       value={accNo ? accNo : "Select Account"}
@@ -302,7 +303,7 @@ const TransferScreen = () => {
                       style={{ width: "100%" }}
                       disabled={accNo ? true : false}
                     >
-                      <option value="">Select Account</option>
+                      <option value="">Selecione a conta</option>
                       {allAccounts.map((account) => {
                         if (account.account_number !== receiverAccNo) {
                           return (
@@ -332,7 +333,7 @@ const TransferScreen = () => {
                       disabled={receiverAccNo ? true : false}
                     >
                       <Dropdown.Item eventKey="">
-                        Receiver account type
+                        Tipo de conta do destinatário
                       </Dropdown.Item>
                       <Dropdown.Item eventKey="Savings">Savings</Dropdown.Item>
                       <Dropdown.Item eventKey="Checking">
@@ -342,13 +343,13 @@ const TransferScreen = () => {
                         Investment
                       </Dropdown.Item>
                       <Dropdown.Item eventKey="Money Market">
-                        Money Market
+                        Fundo DI
                       </Dropdown.Item>
                     </DropdownButton>
                   </Col>
                   <Col md={8}>
                     <Form.Group className="mt-3" controlId="receiver_acc_no">
-                      <Form.Label>Receiver account number</Form.Label>
+                      <Form.Label>Conta de destino</Form.Label>
                       <Form.Select
                         value={receiverAccNo ? receiverAccNo : "Select Account"}
                         onChange={(e) => {
@@ -366,7 +367,7 @@ const TransferScreen = () => {
                         }}
                         style={{ width: "100%" }}
                       >
-                        <option value="">Select Account</option>
+                        <option value="">Selecione a conta</option>
                         {allAccounts.map((account) => {
                           if (account.account_number !== accNo) {
                             return (
@@ -390,7 +391,7 @@ const TransferScreen = () => {
                     <>
                       <Col md={4}>
                         <Form.Group className="my-3" controlId="balance">
-                          <Form.Label>Your balance</Form.Label>
+                          <Form.Label>Seu saldo</Form.Label>
                           <Form.Control
                             value={`$ ${balance ? balance.toFixed(2) : "0.00"}`}
                             multiple={false}
@@ -403,11 +404,11 @@ const TransferScreen = () => {
                           className="my-3"
                           controlId="transfer_amount"
                         >
-                          <Form.Label>Amount to be transferred</Form.Label>
+                          <Form.Label>Valor a transferir</Form.Label>
                           <Form.Control
                             type="text"
                             pattern="^(?!0\d)\d*(\.\d+)?$"
-                            placeholder="Enter amount to be transferred (in USD)"
+                            placeholder="Informe o valor a transferir (em USD)"
                             value={transferAmount}
                             onChange={(e) => setTransferAmount(e.target.value)}
                             onWheel={(e) => e.target.blur()}
@@ -418,11 +419,11 @@ const TransferScreen = () => {
                   ) : (
                     <Col md={12}>
                       <Form.Group className="my-3" controlId="transfer_amount">
-                        <Form.Label>Amount to be transferred</Form.Label>
+                        <Form.Label>Valor a transferir</Form.Label>
                         <Form.Control
                           type="text"
                           pattern="^(?!0\d)\d*(\.\d+)?$"
-                          placeholder="Enter amount to be transferred (in USD)"
+                          placeholder="Informe o valor a transferir (em USD)"
                           value={transferAmount}
                           onChange={(e) => setTransferAmount(e.target.value)}
                           onWheel={(e) => e.target.blur()}
@@ -434,10 +435,10 @@ const TransferScreen = () => {
 
                 <Row>
                   <Form.Group className="my-3" controlId="reason">
-                    <Form.Label>Reason</Form.Label>
+                    <Form.Label>Descrição</Form.Label>
                     <Form.Control
                       type="text"
-                      placeholder="Enter the reason for transfer (Optional)"
+                      placeholder="Descrição da transferência (opcional)"
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
                     ></Form.Control>
@@ -454,7 +455,7 @@ const TransferScreen = () => {
                       className="mt-3 mr-3"
                       onClick={submitHandler}
                     >
-                      Transfer
+                      Transferir
                     </Button>
                   </Col>
                   <Col md={6}>
@@ -466,7 +467,7 @@ const TransferScreen = () => {
                         variant="dark"
                         className="mt-3 mr-3"
                       >
-                        Cancel
+                        Cancelar
                       </Button>
                     </Link>
                   </Col>
@@ -489,7 +490,7 @@ const TransferScreen = () => {
                       />
                     </Col>
                     <Col md={8}>
-                      <Form.Label className="mt-3">Sender email ID</Form.Label>
+                      <Form.Label className="mt-3">E-mail do remetente</Form.Label>
                       <Form.Control
                         value={userInfo.email}
                         style={{ width: "100%" }}
@@ -511,7 +512,7 @@ const TransferScreen = () => {
                     </Col>
                     <Col md={8}>
                       <Form.Group className="mt-3" controlId="receiver_acc_no">
-                        <Form.Label>Receiver email ID</Form.Label>
+                        <Form.Label>E-mail do destinatário</Form.Label>
                         <Form.Control
                           value={receiverEmail ? receiverEmail : ""}
                           onChange={(e) => setReceiverEmail(e.target.value)}
@@ -524,7 +525,7 @@ const TransferScreen = () => {
                   <Row className="mt-4">
                     <Col md={4}>
                       <Form.Group className="my-3" controlId="balance">
-                        <Form.Label>Your balance</Form.Label>
+                        <Form.Label>Seu saldo</Form.Label>
                         <Form.Control
                           value={`$ ${
                             checkingAccountBalance
@@ -538,11 +539,11 @@ const TransferScreen = () => {
                     </Col>
                     <Col md={8}>
                       <Form.Group className="my-3" controlId="transfer_amount">
-                        <Form.Label>Amount to be transferred</Form.Label>
+                        <Form.Label>Valor a transferir</Form.Label>
                         <Form.Control
                           type="text"
                           pattern="^(?!0\d)\d*(\.\d+)?$"
-                          placeholder="Enter amount to be transferred (in USD)"
+                          placeholder="Informe o valor a transferir (em USD)"
                           value={transferAmount}
                           onChange={(e) => setTransferAmount(e.target.value)}
                           onWheel={(e) => e.target.blur()}
@@ -553,10 +554,10 @@ const TransferScreen = () => {
 
                   <Row>
                     <Form.Group className="my-3" controlId="reason">
-                      <Form.Label>Reason</Form.Label>
+                      <Form.Label>Descrição</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder="Enter the reason for transfer (Optional)"
+                        placeholder="Descrição da transferência (opcional)"
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
                       ></Form.Control>
@@ -573,7 +574,7 @@ const TransferScreen = () => {
                         className="mt-3 mr-3"
                         onClick={submitHandlerExternal}
                       >
-                        Transfer
+                        Transferir
                       </Button>
                     </Col>
                     <Col md={6}>
@@ -585,7 +586,7 @@ const TransferScreen = () => {
                           variant="dark"
                           className="mt-3 mr-3"
                         >
-                          Cancel
+                          Cancelar
                         </Button>
                       </Link>
                     </Col>
@@ -594,8 +595,8 @@ const TransferScreen = () => {
                 </Form>
               ) : (
                 <h5 className="text-center my-5 py-5">
-                  You do not have a checking account. Please create one to make
-                  external transfers.
+                  Você não tem uma conta corrente. Abra uma para fazer
+                  transferências externas.
                 </h5>
               )}
             </Tab>

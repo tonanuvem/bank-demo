@@ -20,24 +20,24 @@ const Hero = () => {
         <Card className="p-5 d-flex flex-column align-items-center hero-card w-75">
           <h1 className="text-center mb-4">
             <span style={{ fontSize: "4vh", fontWeight: "bold" }}>
-              Welcome to Martian Bank
+              Bem-vindo ao FIAP OTEL Bank
             </span>
           </h1>
           <p style={{ fontSize: "2vh", textAlign: "center" }}>
-            Secure your Martian finances with Red Planet Bank - your trusted
-            financial partner on the Red Planet. Explore our innovative banking
-            solutions, enjoy top-notch security measures, and fuel your Martian
-            ventures with our competitive loans and investment opportunities.
+            Cuide das suas finanças marcianas com o FIAP OTEL Bank - seu parceiro
+            financeiro de confiança no Planeta Vermelho. Conheça nossas soluções
+            bancárias inovadoras, aproveite a segurança de ponta e impulsione
+            seus projetos marcianos com empréstimos e investimentos competitivos.
           </p>
           <div className="d-flex mt-4 mb-4">
             <LinkContainer to="/login">
               <Button variant="dark" className="me-5 px-5 py-2">
-                <span style={{ fontSize: "2vh" }}>Login</span>
+                <span style={{ fontSize: "2vh" }}>Entrar</span>
               </Button>
             </LinkContainer>
             <LinkContainer to="/register">
               <Button variant="dark" className="me-5 px-5 py-2">
-                <span style={{ fontSize: "2vh" }}>Signup</span>
+                <span style={{ fontSize: "2vh" }}>Cadastrar</span>
               </Button>
             </LinkContainer>
           </div>
@@ -50,10 +50,10 @@ const Hero = () => {
                     className="display-3 my-3"
                   />
                   <Card.Body>
-                    <Card.Title>Flexible Banking Solutions</Card.Title>
+                    <Card.Title>Soluções Bancárias Flexíveis</Card.Title>
                     <Card.Text>
-                      Enjoy a wide range of banking products and services
-                      tailored to your Martian needs.
+                      Uma linha completa de produtos e serviços bancários
+                      feita sob medida para as suas necessidades marcianas.
                     </Card.Text>
                   </Card.Body>
                 </Card>
@@ -65,10 +65,10 @@ const Hero = () => {
                     className="display-3 my-3"
                   />
                   <Card.Body>
-                    <Card.Title>Top-Notch Security</Card.Title>
+                    <Card.Title>Segurança de Ponta</Card.Title>
                     <Card.Text>
-                      Rest easy knowing that your Martian assets are protected
-                      with us.
+                      Fique tranquilo: seus bens marcianos estão protegidos
+                      com a gente.
                     </Card.Text>
                   </Card.Body>
                 </Card>
@@ -77,10 +77,10 @@ const Hero = () => {
                 <Card className="text-center border-0">
                   <FontAwesomeIcon icon={faRocket} className="display-3 my-3" />
                   <Card.Body>
-                    <Card.Title>Martian Ventures</Card.Title>
+                    <Card.Title>Projetos Marcianos</Card.Title>
                     <Card.Text>
-                      Fuel your Martian dreams with our competitive loans and
-                      investment opportunities.
+                      Realize seus sonhos marcianos com nossos empréstimos e
+                      oportunidades de investimento.
                     </Card.Text>
                   </Card.Body>
                 </Card>

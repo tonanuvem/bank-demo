@@ -11,57 +11,57 @@ const AccountDisclosure = () => {
         <Card.Text style={{ fontSize: "1vh" }}>
           <Card.Body className="text-muted">
             <span>
-              <strong>Account Disclosures</strong>
+              <strong>Informações Regulatórias</strong>
             </span>
             <br />
             <br />
-            <span>Investment and Insurance Products are:</span>
+            <span>Produtos de investimento e seguros:</span>
             <br />
             <ul>
               <li>
-                Not Insured by the MFIC (Martian Financial Institutions
-                Commission) or Any Martian Government Agency
+                Não são garantidos pela CMVM (Comissão Marciana de Valores
+                Mobiliários) nem por qualquer órgão do governo marciano
               </li>
               <li>
-                Not a Deposit or Other Obligation of, or Guaranteed by, the Bank
-                or Any Bank Affiliate
+                Não constituem depósito nem obrigação do banco ou de suas
+                coligadas, e não são por eles garantidos
               </li>
               <li>
-                Subject to Investment Risks, Including Possible Loss of the
-                Principal Amount Invested
+                Estão sujeitos a riscos de mercado, incluindo a possibilidade
+                de perda do valor principal investido
               </li>
             </ul>
             <span>
-              Investment products and services are offered through Martian Bank
-              Advisors. Martian Bank Advisors is a trade name used by Martian
-              Clearing Services, LLC (MCSC) and Martian Bank Advisors Financial
-              Network, LLC, Members MPIC (Martian Planetary Investment
-              Commission), separate registered broker-dealers and non-bank
-              affiliates of Martian Bank Corporation.
+              Produtos e serviços de investimento são oferecidos pela FIAP OTEL
+              Bank Investimentos, nome comercial utilizado por Marte Clearing
+              Serviços Ltda. (MCS) e FIAP OTEL Bank Rede Financeira Ltda.,
+              associadas à CMIP (Comissão Marciana de Investimentos
+              Planetários), corretoras independentes e coligadas não bancárias
+              do FIAP OTEL Bank S.A.
             </span>
             <br />
             <span>
-              Deposit products offered by Martian Bank, M.A. Member MFDIC
-              (Martian Financial Deposit Insurance Corporation).
+              Produtos de depósito oferecidos pelo FIAP OTEL Bank S.A.,
+              associado ao FGCM (Fundo Garantidor de Créditos Marciano).
             </span>
             <br />
-            <span>Equal Planetary Habitat Lender</span>
+            <span>Crédito habitacional planetário com igualdade de acesso</span>
             <br />
             <span>
-              At Martian Bank, we are committed to promoting sustainability and
-              supporting environmental initiatives across our operations. Join
-              us in our mission to build a greener and more sustainable future
-              for all Martian inhabitants.
+              No FIAP OTEL Bank, temos o compromisso de promover a
+              sustentabilidade e apoiar iniciativas ambientais em todas as
+              nossas operações. Junte-se a nós na missão de construir um futuro
+              mais verde e sustentável para todos os habitantes de Marte.
             </span>
             <br />
             <span>
-              For inquiries regarding our products and services or to learn more
-              about our commitment to environmental sustainability, please visit
-              our website or contact our customer support team.
+              Para dúvidas sobre nossos produtos e serviços, ou para saber mais
+              sobre nosso compromisso com a sustentabilidade, visite nosso site
+              ou fale com a equipe de atendimento.
             </span>
             <br />
             <br />
-            <span>© 2023 Martian Bank. All rights reserved.</span>
+            <span>© 2023 FIAP OTEL Bank. Todos os direitos reservados.</span>
           </Card.Body>
         </Card.Text>
       </Card.Body>

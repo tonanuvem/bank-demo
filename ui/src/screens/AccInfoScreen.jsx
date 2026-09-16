@@ -58,14 +58,14 @@ const AccInfoScreen = () => {
           marginBottom: "3vh",
         }}
       >
-        Account Information
+        Dados da conta
       </h4>
 
       <Form>
         <Row>
           <Col md={4}>
             <Form.Group className="my-3" controlId="acc_no">
-              <Form.Label>Account type</Form.Label>
+              <Form.Label>Tipo de conta</Form.Label>
               <Form.Control
                 type="text"
                 value={accType ? accType : "Error"}
@@ -75,10 +75,10 @@ const AccInfoScreen = () => {
           </Col>
           <Col md={8}>
             <Form.Group className="my-3" controlId="acc_no">
-              <Form.Label>Account number</Form.Label>
+              <Form.Label>Número da conta</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Enter your account number"
+                placeholder="Informe o número da conta"
                 value={accNo ? accNo : "Error"}
                 disabled
               ></Form.Control>
@@ -89,10 +89,10 @@ const AccInfoScreen = () => {
         <Row className="m3-4">
           <Col md={6}>
             <Form.Group className="my-3" controlId="name">
-              <Form.Label>Name</Form.Label>
+              <Form.Label>Nome</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Enter your name"
+                placeholder="Informe seu nome"
                 value={userInfo.name}
                 disabled
               ></Form.Control>
@@ -100,10 +100,10 @@ const AccInfoScreen = () => {
           </Col>
           <Col md={6}>
             <Form.Group className="my-3" controlId="email">
-              <Form.Label>Email address</Form.Label>
+              <Form.Label>E-mail</Form.Label>
               <Form.Control
                 type="email"
-                placeholder="Enter your email address"
+                placeholder="Informe seu e-mail"
                 value={userInfo.email}
                 disabled
               ></Form.Control>
@@ -114,25 +114,25 @@ const AccInfoScreen = () => {
         <Row>
           <Col md={6}>
             <Form.Group className="my-3" controlId="govt_id">
-              <Form.Label>Govt. ID</Form.Label>
+              <Form.Label>Documento</Form.Label>
               <Form.Select
                 value={govtId ? govtId : "Error"}
                 multiple={false}
                 disabled
               >
-                <option value="">Select your govt. ID</option>
-                <option value="Passport">Passport</option>
-                <option value="Driver License">Driver's License</option>
-                <option value="Aadhar Card">SSN</option>
+                <option value="">Selecione o documento</option>
+                <option value="Passport">Passaporte</option>
+                <option value="Driver License">CNH</option>
+                <option value="Aadhar Card">CPF</option>
               </Form.Select>
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group className="my-3" controlId="govt_id_no">
-              <Form.Label>Govt. ID number</Form.Label>
+              <Form.Label>Número do documento</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Enter your Govt. ID number"
+                placeholder="Informe o número do documento"
                 value={govtIdNo ? govtIdNo : "Error"}
                 disabled
               />
@@ -143,10 +143,10 @@ const AccInfoScreen = () => {
         <Row>
           <Col md={4}>
             <Form.Group className="my-3" controlId="balance">
-              <Form.Label>Balance</Form.Label>
+              <Form.Label>Saldo</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Enter your balance"
+                placeholder="Informe o saldo"
                 value={balance ? `$ ${balance}` : "Error"}
                 disabled
               ></Form.Control>
@@ -154,10 +154,10 @@ const AccInfoScreen = () => {
           </Col>
           <Col md={8}>
             <Form.Group className="my-3" controlId="address">
-              <Form.Label>Address</Form.Label>
+              <Form.Label>Endereço</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Enter your residential address"
+                placeholder="Informe seu endereço residencial"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               ></Form.Control>
@@ -175,7 +175,7 @@ const AccInfoScreen = () => {
               variant="dark"
               className="mt-3 mr-3"
             >
-              Submit
+              Salvar
             </Button>
           </Col>
           <Col md={6}>
@@ -187,7 +187,7 @@ const AccInfoScreen = () => {
                 variant="dark"
                 className="mt-3 mr-3"
               >
-                Go Back
+                Voltar
               </Button>
             </Link>
           </Col>

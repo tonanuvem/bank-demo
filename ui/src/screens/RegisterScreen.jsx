@@ -13,6 +13,7 @@ import { useRegisterMutation } from "../slices/usersApiSlice";
 import { setCredentials } from "../slices/authSlice";
 import { toast } from "react-toastify";
 import "../index.css";
+import { traduzirMensagem } from "../i18n/rotulos";
 
 const RegisterScreen = () => {
   const [name, setName] = useState("");
@@ -39,7 +40,7 @@ const RegisterScreen = () => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error("As senhas não coincidem");
     } else {
       try {
         const res = await register({ name, email, password }).unwrap();
@@ -61,7 +62,7 @@ const RegisterScreen = () => {
         navigate("/login");
       } catch (err) {
         console.log(err);
-        toast.error(err?.data?.message || err.error, {
+        toast.error(traduzirMensagem(err?.data?.message || err.error), {
           className: "toast-container-custom",
           autoClose: 500,
           hideProgressBar: true,
@@ -88,33 +89,33 @@ const RegisterScreen = () => {
                   paddingBottom: "2vh",
                 }}
               >
-                Make an Account
+                Abra sua conta
               </h4>
               <Form onSubmit={submitHandler}>
                 <Form.Group className="my-4" controlId="name">
                   <Form.Control
                     type="name"
                     required
-                    placeholder="Enter name"
+                    placeholder="Informe seu nome"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
                   <Form.Text muted style={{ fontSize: "1.25vh" }}>
-                    Please enter your full name.
+                    Informe seu nome completo.
                   </Form.Text>
                 </Form.Group>
 
                 <Form.Group className="my-4" controlId="email">
                   <Form.Control
                     type="email"
-                    placeholder="Enter email"
+                    placeholder="Informe seu e-mail"
                     value={email}
                     required
                     pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
                     onChange={(e) => setEmail(e.target.value)}
                   ></Form.Control>
                   <Form.Text muted style={{ fontSize: "1.25vh" }}>
-                    Please enter a valid email address.
+                    Informe um endereço de e-mail válido.
                   </Form.Text>
                 </Form.Group>
 
@@ -123,23 +124,23 @@ const RegisterScreen = () => {
                     type="password"
                     required
                     pattern="^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$"
-                    placeholder="Enter password"
+                    placeholder="Crie uma senha"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   ></Form.Control>
                   <Form.Text muted style={{ fontSize: "1.25vh" }}>
-                    Password must include:
-                    <div>1. at least 8 characters</div>
-                    <div>2. at least one uppercase letter</div>
-                    <div>3. at least one lowercase letter</div>
-                    <div>4. at least one digit</div>
-                    <div>5. at least one special character (@$!%*#?&)</div>
+                    A senha deve conter:
+                    <div>1. no mínimo 8 caracteres</div>
+                    <div>2. ao menos uma letra maiúscula</div>
+                    <div>3. ao menos uma letra minúscula</div>
+                    <div>4. ao menos um número</div>
+                    <div>5. ao menos um caractere especial (@$!%*#?&)</div>
                   </Form.Text>
                 </Form.Group>
                 <Form.Group className="my-4" controlId="confirmPassword">
                   <Form.Control
                     type="password"
-                    placeholder="Confirm password"
+                    placeholder="Confirme a senha"
                     value={confirmPassword}
                     required
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -147,7 +148,7 @@ const RegisterScreen = () => {
                 </Form.Group>
 
                 <Button type="submit" variant="dark" className="mt-3">
-                  Submit Request
+                  Cadastrar
                 </Button>
 
                 {isLoading && <Loader />}
@@ -155,7 +156,7 @@ const RegisterScreen = () => {
 
               <Row className="pt-4">
                 <Col style={{ fontSize: "1.25vh" }}>
-                  Already have an account? <Link to={`/login`}>Login</Link>
+                  Já tem conta? <Link to={`/login`}>Entrar</Link>
                 </Col>
               </Row>
             </Col>
@@ -164,10 +165,10 @@ const RegisterScreen = () => {
         <Col md={6} className="rounded p-5" style={{ margin: "2vh" }}>
           <Row>
             <Col md={12} className="p-5">
-              <h1 className="text-center">$100 bonus on us!</h1>
+              <h1 className="text-center">Bônus de $100 por nossa conta!</h1>
               <p className="text-center">
-                Open an eligible account with qualifying electronic deposits and
-                get $100 bonus.
+                Abra uma conta elegível, faça depósitos eletrônicos
+                qualificados e ganhe $100 de bônus.
               </p>
             </Col>
           </Row>

@@ -25,6 +25,7 @@ import { getAccounts } from "../slices/accountSlice";
 import { toast } from "react-toastify";
 import Loader from "../components/Loader";
 import "../index.css";
+import { traduzirMensagem } from "../i18n/rotulos";
 
 const ApplyLoan = () => {
   const [validated, setValidated] = useState(false);
@@ -105,7 +106,7 @@ const ApplyLoan = () => {
         const res = await postLoanAPI(data_loan).unwrap();
         console.log(res);
         dispatch(createLoan(res));
-        toast.success("Congratulations! Your loan is approved!", {
+        toast.success("Parabéns! Seu empréstimo foi aprovado!", {
           className: "toast-container-custom",
           autoClose: 500,
           hideProgressBar: true,
@@ -119,7 +120,7 @@ const ApplyLoan = () => {
         setLoanAdded(true);
       } catch (err) {
         console.log(err);
-        toast.error(err?.data?.message || err.error, {
+        toast.error(traduzirMensagem(err?.data?.message || err.error), {
           className: "toast-container-custom",
           autoClose: 500,
           hideProgressBar: true,
@@ -155,7 +156,7 @@ const ApplyLoan = () => {
       fetchAccounts();
     } catch (err) {
       console.log(err);
-      toast.error("Error in fetching accounts!", {
+      toast.error("Erro ao carregar as contas!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -178,7 +179,7 @@ const ApplyLoan = () => {
           paddingBottom: "2vh",
         }}
       >
-        Loan Application
+        Solicitação de Empréstimo
       </h4>
       {isLoading ? (
         <Loader />
@@ -187,10 +188,10 @@ const ApplyLoan = () => {
           <Row className="mt-4">
             <Col md={6}>
               <Form.Group className="my-3" controlId="name">
-                <Form.Label>Name</Form.Label>
+                <Form.Label>Nome</Form.Label>
                 <Form.Control
                   type="text"
-                  placeholder="Enter your name"
+                  placeholder="Informe seu nome"
                   value={userInfo.name}
                   disabled
                   required
@@ -199,10 +200,10 @@ const ApplyLoan = () => {
             </Col>
             <Col md={6}>
               <Form.Group className="my-3" controlId="email">
-                <Form.Label>Email address</Form.Label>
+                <Form.Label>E-mail</Form.Label>
                 <Form.Control
                   type="email"
-                  placeholder="Enter your email address"
+                  placeholder="Informe seu e-mail"
                   value={userInfo.email}
                   disabled
                   required
@@ -214,26 +215,26 @@ const ApplyLoan = () => {
           <Row>
             <Col md={4}>
               <Form.Group className="my-3" controlId="acc_type">
-                <Form.Label>Account type</Form.Label>
+                <Form.Label>Tipo de conta</Form.Label>
                 <Form.Select
                   required
                   value={accType}
                   multiple={false}
                   onChange={(e) => setAccType(e.target.value)}
-                  aria-label="Select account type"
+                  aria-label="Selecione o tipo de conta"
                   disabled={accType ? true : false}
                 >
-                  <option value="">Select your account type</option>
-                  <option value="Savings">Savings</option>
-                  <option value="Checking">Checking</option>
-                  <option value="Investment">Investment</option>
-                  <option value="Money Market">Money Market</option>
+                  <option value="">Selecione o tipo de conta</option>
+                  <option value="Savings">Poupança</option>
+                  <option value="Checking">Conta Corrente</option>
+                  <option value="Investment">Investimento</option>
+                  <option value="Money Market">Fundo DI</option>
                 </Form.Select>
               </Form.Group>
             </Col>
             <Col md={8}>
               <Form.Group className="my-3" controlId="acc_no">
-                <Form.Label>Account number</Form.Label>
+                <Form.Label>Número da conta</Form.Label>
                 <Form.Select
                   required
                   value={accNo ? accNo : "Select Account"}
@@ -256,9 +257,9 @@ const ApplyLoan = () => {
                       selectedAccount ? selectedAccount.govt_id_number : null
                     );
                   }}
-                  aria-label="Select account number"
+                  aria-label="Selecione a conta"
                 >
-                  <option value="">Select your account number</option>
+                  <option value="">Selecione a conta</option>
                   {allAccounts.map((account) => (
                     <option value={account.account_number}>
                       {account.account_number}
@@ -272,29 +273,29 @@ const ApplyLoan = () => {
           <Row>
             <Col md={4}>
               <Form.Group className="my-3" controlId="govt_id">
-                <Form.Label>ID Type</Form.Label>
+                <Form.Label>Tipo de documento</Form.Label>
                 <Form.Select
                   required
                   value={govtId}
                   multiple={false}
                   onChange={(e) => setGovtId(e.target.value)}
-                  aria-label="Select your ID type"
+                  aria-label="Selecione o tipo de documento"
                   disabled={govtId ? true : false}
                 >
-                  <option value="">Select your ID type</option>
-                  <option value="Passport">Passport</option>
-                  <option value="DriverLicense">Driver's License</option>
-                  <option value="AadharCard">SSN</option>
+                  <option value="">Selecione o documento</option>
+                  <option value="Passport">Passaporte</option>
+                  <option value="DriverLicense">CNH</option>
+                  <option value="AadharCard">CPF</option>
                 </Form.Select>
               </Form.Group>
             </Col>
             <Col md={8}>
               <Form.Group className="my-3" controlId="govt_id_no">
-                <Form.Label>ID number</Form.Label>
+                <Form.Label>Número do documento</Form.Label>
                 <Form.Control
                   required
                   type="text"
-                  placeholder="Enter your ID number"
+                  placeholder="Informe o número do documento"
                   value={govtIdNo}
                   onChange={(e) => setGovtIdNo(e.target.value)}
                   disabled={govtIdNo ? true : false}
@@ -306,7 +307,7 @@ const ApplyLoan = () => {
           <Row>
             <Col md={6}>
               <Form.Group className="my-3" controlId="loan_type">
-                <Form.Label>Loan type</Form.Label>
+                <Form.Label>Tipo de empréstimo</Form.Label>
                 <Form.Select
                   required
                   value={loanType}
@@ -317,25 +318,25 @@ const ApplyLoan = () => {
                     setLoanTime(terms[selectedLoanType].timePeriod);
                     setLoanType(e.target.value);
                   }}
-                  aria-label="Select loan type"
+                  aria-label="Selecione o tipo de empréstimo"
                 >
-                  <option value="">Select your loan type</option>
-                  <option value="BaseCamp">Base Camp</option>
+                  <option value="">Selecione o tipo de empréstimo</option>
+                  <option value="BaseCamp">Acampamento Base</option>
                   <option value="Rover">Rover</option>
-                  <option value="PotatoFarming">Potato Farming</option>
-                  <option value="IceHome">Ice Home</option>
-                  <option value="Rocket">Rocket</option>
+                  <option value="PotatoFarming">Plantação de Batatas</option>
+                  <option value="IceHome">Casa de Gelo</option>
+                  <option value="Rocket">Foguete</option>
                 </Form.Select>
               </Form.Group>
             </Col>
             <Col md={6}>
               <Form.Group className="my-3" controlId="loan_amount">
-                <Form.Label>Loan amount</Form.Label>
+                <Form.Label>Valor do empréstimo</Form.Label>
                 <Form.Control
                   type="number"
                   min="0"
                   required
-                  placeholder="Enter the loan amount"
+                  placeholder="Informe o valor do empréstimo"
                   value={loanAmount}
                   onChange={(e) => setLoanAmount(e.target.value)}
                   onWheel={(e) => e.target.blur()}
@@ -347,29 +348,29 @@ const ApplyLoan = () => {
           <Row>
             <Col md={6}>
               <Form.Group className="my-3" controlId="loan_type">
-                <Form.Label>Interest Rate</Form.Label>
+                <Form.Label>Taxa de juros</Form.Label>
                 <Form.Control
                   value={intRate}
                   type="number"
                   min="5"
                   required
                   disabled
-                  placeholder="Select loan type"
+                  placeholder="Selecione o tipo de empréstimo"
                   onWheel={(e) => e.target.blur()}
                   onChange={(e) => setIntRate(e.target.value)}
-                  aria-label="Select loan type"
+                  aria-label="Selecione o tipo de empréstimo"
                 ></Form.Control>
               </Form.Group>
             </Col>
             <Col md={6}>
               <Form.Group className="my-3" controlId="loan_amount">
-                <Form.Label>Time Period</Form.Label>
+                <Form.Label>Prazo</Form.Label>
                 <Form.Control
                   type="number"
                   min="0"
                   required
                   disabled
-                  placeholder="Select loan type"
+                  placeholder="Selecione o tipo de empréstimo"
                   value={loanTime}
                   onChange={(e) => setLoanTime(e.target.value)}
                   onWheel={(e) => e.target.blur()}
@@ -393,7 +394,7 @@ const ApplyLoan = () => {
                   onClick={handleModalOpen}
                   style={{ textDecoration: "underline", color: "blue" }}
                 >
-                  Terms and Conditions
+                  Termos e Condições
                 </div>
                 <Modal
                   show={showModal}
@@ -402,67 +403,60 @@ const ApplyLoan = () => {
                   size="xl"
                 >
                   <Modal.Header closeButton>
-                    <Modal.Title>Terms and Conditions</Modal.Title>
+                    <Modal.Title>Termos e Condições</Modal.Title>
                   </Modal.Header>
                   <Modal.Body>
                     <p>
-                      Welcome to Martian Bank! By applying for a loan with us,
-                      you agree to the following terms and conditions:
+                      Bem-vindo ao FIAP OTEL Bank! Ao solicitar um empréstimo
+                      conosco, você concorda com os termos e condições a seguir:
                     </p>
 
-                    <h3>1. Eligibility</h3>
+                    <h3>1. Elegibilidade</h3>
                     <p>
-                      To apply for a loan at Martian Bank, you must meet certain
-                      eligibility criteria. These criteria include but are not
-                      limited to: being a resident of Mars, having a minimum age
-                      of 21 years, and meeting the required creditworthiness
-                      standards set by Martian Bank. Additional documentation
-                      and information may be required during the loan
-                      application process.
+                      Para solicitar um empréstimo no FIAP OTEL Bank, você precisa
+                      atender a alguns critérios de elegibilidade, entre eles: ser
+                      residente em Marte, ter no mínimo 21 anos e cumprir os
+                      padrões de análise de crédito definidos pelo FIAP OTEL Bank.
+                      Documentos e informações adicionais podem ser solicitados
+                      durante o processo.
                     </p>
 
-                    <h3>2. Loan Terms</h3>
+                    <h3>2. Condições do Empréstimo</h3>
                     <p>
-                      The loan terms, including the loan amount, interest rate,
-                      repayment period, and any applicable fees, will be
-                      provided to you during the loan application process. It is
-                      important to carefully review and understand these terms
-                      before accepting the loan offer. Any changes to the loan
-                      terms will be communicated to you in a timely manner.
+                      As condições do empréstimo, incluindo valor, taxa de juros,
+                      prazo de pagamento e eventuais tarifas, serão apresentadas
+                      durante a solicitação. É importante ler e entender essas
+                      condições antes de aceitar a proposta. Qualquer alteração
+                      será comunicada com a devida antecedência.
                     </p>
 
-                    <h3>3. Repayment</h3>
+                    <h3>3. Pagamento</h3>
                     <p>
-                      As a borrower, you are responsible for making timely
-                      repayments as agreed upon in the loan agreement. Failure
-                      to make payments on time may result in additional charges,
-                      penalties, and potential damage to your credit history. It
-                      is essential to manage your finances responsibly and
-                      ensure sufficient funds are available for loan repayments.
+                      Como tomador, você é responsável por pagar as parcelas nos
+                      prazos acordados no contrato. O atraso pode gerar encargos,
+                      multas e restrições no seu histórico de crédito. Organize
+                      suas finanças e garanta saldo suficiente para as parcelas.
                     </p>
 
-                    <h3>4. Default and Remedies</h3>
+                    <h3>4. Inadimplência</h3>
                     <p>
-                      If you default on your loan payments, Martian Bank
-                      reserves the right to take necessary actions to recover
-                      the outstanding amount. This may include but is not
-                      limited to reporting the default to credit agencies,
-                      initiating legal proceedings, and engaging third-party
-                      collection agencies. It is crucial to communicate with
-                      Martian Bank in case of financial difficulties to explore
-                      possible solutions and avoid default.
+                      Em caso de inadimplência, o FIAP OTEL Bank poderá tomar as
+                      medidas necessárias para recuperar o valor em aberto,
+                      incluindo registro em órgãos de proteção ao crédito, ações
+                      judiciais e contratação de empresas de cobrança. Em caso de
+                      dificuldade financeira, procure o FIAP OTEL Bank para buscar
+                      alternativas e evitar a inadimplência.
                     </p>
 
                     <p>
-                      By applying for a loan with Martian Bank, you acknowledge
-                      that you have read, understood, and agreed to these Terms
-                      and Conditions. If you have any questions or concerns,
-                      please contact our customer support team.
+                      Ao solicitar um empréstimo no FIAP OTEL Bank, você declara
+                      que leu, entendeu e concorda com estes Termos e Condições.
+                      Em caso de dúvidas, fale com nossa equipe de atendimento.
                     </p>
                   </Modal.Body>
                   <Modal.Footer>
                     <Button variant="dark" onClick={handleModalClose}>
-                      Agree
+                      Concordo
                     </Button>
                   </Modal.Footer>
                 </Modal>
@@ -478,7 +472,7 @@ const ApplyLoan = () => {
                 variant="dark"
                 className="mt-5 mr-3"
               >
-                Apply
+                Solicitar
               </Button>
             </Col>
             <Col md={6}>
@@ -488,7 +482,7 @@ const ApplyLoan = () => {
                   variant="dark"
                   className="mt-5"
                 >
-                  Cancel
+                  Cancelar
                 </Button>
               </Link>
             </Col>

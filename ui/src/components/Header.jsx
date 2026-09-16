@@ -37,11 +37,11 @@ const Header = () => {
     try {
       // const jwtCookie = Cookies.get("jwt");
       // if (!jwtCookie) {
-      //   toast.error("No JWT cookie found!");
+      //   toast.error("Sessão não encontrada!");
       // } else {
       //   await logoutApiCall(jwtCookie).unwrap();
       //   dispatch(logout());
-      //   toast.success("Logged out", {
+      //   toast.success("Sessão encerrada", {
       //     className: "toast-container-custom",
       //     autoClose: false,
       //     hideProgressBar: true,
@@ -53,7 +53,7 @@ const Header = () => {
       //   });
       await logoutApiCall({email: userInfo.email}).unwrap();
       dispatch(logout());
-      toast.success("Logged out", {
+      toast.success("Sessão encerrada", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -88,7 +88,7 @@ const Header = () => {
                 width="70vw"
                 height="auto"
               />
-              <strong style={{ fontSize: "4vh" }}>Martian </strong>
+              <strong style={{ fontSize: "4vh" }}>FIAP OTEL </strong>
               <span
                 style={{ fontSize: "4vh", fontWeight: "lighter", color: "red" }}
               >
@@ -102,40 +102,40 @@ const Header = () => {
               {userInfo ? (
                 <>
                   <NavDropdown
-                    title="Accounts"
+                    title="Contas"
                     id="accounts"
                     className="custom-nav-dropdown"
                     style={{ fontSize: "2vh", marginRight: 30 }}
                   >
                     <LinkContainer to="/">
                       <NavDropdown.Item>
-                        <span style={{ fontSize: "1.5vh" }}>My Accounts</span>
+                        <span style={{ fontSize: "1.5vh" }}>Minhas Contas</span>
                       </NavDropdown.Item>
                     </LinkContainer>
                     <LinkContainer to="/new-account">
                       <NavDropdown.Item>
-                        <span style={{ fontSize: "1.5vh" }}>New Account</span>
+                        <span style={{ fontSize: "1.5vh" }}>Nova Conta</span>
                       </NavDropdown.Item>
                     </LinkContainer>
                   </NavDropdown>
                   <CustomNavItems
                     style={{ marginRight: 30 }}
-                    name="Transfer"
+                    name="Transferir"
                     link="/transfer"
                   />
                   <CustomNavItems
                     style={{ marginRight: 30 }}
-                    name="Transactions"
+                    name="Extrato"
                     link="/transactions"
                   />
                   <CustomNavItems
                     style={{ marginRight: 30 }}
-                    name="Loans"
+                    name="Empréstimos"
                     link="/loan"
                   />
                   <CustomNavItems
                     style={{ marginRight: 30 }}
-                    name="Find ATMs"
+                    name="Caixas Eletrônicos"
                     link="/find-atm"
                   />
                   <NavDropdown
@@ -146,12 +146,12 @@ const Header = () => {
                   >
                     <LinkContainer to="/profile">
                       <NavDropdown.Item>
-                        <span style={{ fontSize: "1.5vh" }}>Personal Info</span>
+                        <span style={{ fontSize: "1.5vh" }}>Dados Pessoais</span>
                       </NavDropdown.Item>
                     </LinkContainer>
                     <LinkContainer to="/login">
                       <NavDropdown.Item onClick={logoutHandler}>
-                        <span style={{ fontSize: "1.5vh" }}>Logout</span>
+                        <span style={{ fontSize: "1.5vh" }}>Sair</span>
                       </NavDropdown.Item>
                     </LinkContainer>
                   </NavDropdown>
@@ -160,20 +160,20 @@ const Header = () => {
                 <>
                   <CustomNavItems
                     style={{ marginRight: 20 }}
-                    name="Find ATMs"
+                    name="Caixas Eletrônicos"
                     link="/find-atm"
                   />
                   <Nav.Item style={{ marginRight: 20 }}>
                     <LinkContainer to="/register">
                       <Nav.Link className="text-white">
-                        <span style={{ fontSize: "2vh" }}>Signup</span>
+                        <span style={{ fontSize: "2vh" }}>Cadastrar</span>
                       </Nav.Link>
                     </LinkContainer>
                   </Nav.Item>
                   <Nav.Item style={{ marginRight: 40 }}>
                     <LinkContainer to="/login">
                       <Nav.Link className="text-white">
-                        <span style={{ fontSize: "2vh" }}>Login</span>
+                        <span style={{ fontSize: "2vh" }}>Entrar</span>
                       </Nav.Link>
                     </LinkContainer>
                   </Nav.Item>

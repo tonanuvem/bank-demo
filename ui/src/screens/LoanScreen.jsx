@@ -20,6 +20,7 @@ import {
 import { storeLoanHistory } from "../slices/loanSlice";
 import { toast } from "react-toastify";
 import Loader from "../components/Loader";
+import { traduzir, tiposDeEmprestimo } from "../i18n/rotulos";
 import "../index.css";
 
 const CustomCard = ({ title, text, icon, link }) => {
@@ -84,7 +85,7 @@ const LoanScreen = () => {
       fetchLoans();
     } catch (err) {
       console.log(err);
-      toast.error("Error in fetching loans!", {
+      toast.error("Erro ao carregar os empréstimos!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -108,13 +109,13 @@ const LoanScreen = () => {
           }}
           className="card text-center p-3"
         >
-          Loan options for you
+          Opções de empréstimo para você
         </div>
         <CustomCard
           title="Base Camp"
           text={
             <>
-              Interest Rate: 5.99%, Time Period: 10 years <br />
+              Taxa de juros: 5,99% · Prazo: 10 anos <br />
               <Badge
                 bg="success"
                 style={{
@@ -132,7 +133,7 @@ const LoanScreen = () => {
           title="Rover"
           text={
             <>
-              Interest Rate: 6.5%, Time Period: 5 years <br />
+              Taxa de juros: 6,5% · Prazo: 5 anos <br />
               <Badge
                 bg="success"
                 style={{
@@ -155,7 +156,7 @@ const LoanScreen = () => {
               className="mt-5"
               onClick={() => navigate("/new-loan")}
             >
-              Apply here!
+              Solicite aqui!
             </Button>
           </Col>
           <Col md={3} />
@@ -180,12 +181,12 @@ const LoanScreen = () => {
               </div>
               {loanInfo.map((loan) => (
                 <CustomCard
-                  title={`${loan.loan_type} Loan for $${loan.loan_amount}`}
+                  title={`Empréstimo ${traduzir(loan.loan_type, tiposDeEmprestimo)} de $${loan.loan_amount}`}
                   text={
                     <>
-                      Interest Rate: {loan.interest_rate}%, Time Period:
-                      {loan.time_period} years <br />
-                      Account: {loan.account_number}
+                      Taxa de juros: {loan.interest_rate}% · Prazo:
+                      {loan.time_period} anos <br />
+                      Conta: {loan.account_number}
                     </>
                   }
                 />
@@ -204,7 +205,7 @@ const LoanScreen = () => {
                 Enrolled Loans
               </div>
               <h3 className="mt-5" style={{ textAlign: "center" }}>
-                You dont have any approved loans
+                Você ainda não tem empréstimos aprovados
               </h3>
             </div>
           )

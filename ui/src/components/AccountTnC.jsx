@@ -4,44 +4,42 @@ const TermsAndConditionsModal = () => {
   return (
     <>
       <Modal.Header closeButton>
-        <Modal.Title>Terms and Conditions</Modal.Title>
+        <Modal.Title>Termos e Condições</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <p>
-          Welcome to Martian Bank! By opening an account with us, you agree to
-          the following terms and conditions:
+          Bem-vindo ao FIAP OTEL Bank! Ao abrir uma conta conosco, você
+          concorda com os termos e condições a seguir:
         </p>
-        <h3>1. Eligibility</h3>
+        <h3>1. Elegibilidade</h3>
         <p>
-          To open an account with Martian Bank, you must be a resident of Mars
-          and at least 18 years old. You may be required to provide proof of
-          identity and other supporting documents.
+          Para abrir uma conta no FIAP OTEL Bank, você precisa ser residente
+          em Marte e ter pelo menos 18 anos. Podemos solicitar comprovante de
+          identidade e outros documentos.
         </p>
-        <h3>2. Account Information</h3>
+        <h3>2. Dados Cadastrais</h3>
         <p>
-          You are responsible for providing accurate and up-to-date information
-          during the account opening process. It is essential to keep your
-          account information confidential and not share it with others.
+          Você é responsável por fornecer informações corretas e atualizadas
+          durante a abertura da conta. Mantenha seus dados em sigilo e não os
+          compartilhe com terceiros.
         </p>
-        <h3>3. Fees and Charges</h3>
+        <h3>3. Tarifas e Encargos</h3>
         <p>
-          Martian Bank may impose fees and charges for certain account services.
-          These fees will be disclosed to you during the account opening process
-          and may be subject to change. It is your responsibility to review and
-          understand the applicable fees.
+          O FIAP OTEL Bank pode cobrar tarifas por determinados serviços. Os
+          valores serão informados durante a abertura da conta e podem ser
+          alterados. Cabe a você consultar e entender as tarifas aplicáveis.
         </p>
-        <h3>4. Termination</h3>
+        <h3>4. Encerramento</h3>
         <p>
-          Martian Bank reserves the right to terminate or suspend your account
-          if you violate the terms and conditions or engage in fraudulent or
-          illegal activities. You may also request to close your account at any
-          time, subject to any outstanding obligations.
+          O FIAP OTEL Bank pode encerrar ou suspender sua conta caso você
+          descumpra estes termos ou pratique atividades fraudulentas ou ilegais.
+          Você também pode solicitar o encerramento a qualquer momento, desde
+          que não haja pendências.
         </p>
         <p>
-          By opening an account with Martian Bank, you acknowledge that you have
-          read, understood, and agreed to these Terms and Conditions. If you
-          have any questions or concerns, please contact our customer support
-          team.
+          Ao abrir uma conta no FIAP OTEL Bank, você declara que leu, entendeu
+          e concorda com estes Termos e Condições. Em caso de dúvidas, fale com
+          nossa equipe de atendimento.
         </p>
       </Modal.Body>
     </>

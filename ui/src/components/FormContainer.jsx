@@ -27,9 +27,10 @@ const FormContainer = ({ children, position }) => {
             >
               <Row>
                 <Col md={12} className="p-5">
-                  <h1 className="text-center">$100 bonus on us!</h1>
+                  <h1 className="text-center">Bônus de $100 por nossa conta!</h1>
                   <p className="text-center">
-                    Open an eligible account with qualifying electronic deposits and get $100 bonus.
+                    Abra uma conta elegível, faça depósitos eletrônicos
+                    qualificados e ganhe $100 de bônus.
                   </p>
                 </Col>
               </Row>

@@ -25,36 +25,35 @@ const Footer = () => {
               <Card.Text style={{ fontSize: "1.25vh" }}>
                 <Card.Body>
                   <span>
-                    <strong>Account Disclosures</strong>
+                    <strong>Informações Regulatórias</strong>
                   </span>
                   <br />
                   <br />
-                  <span>Investment and Insurance Products are: </span>
-                  1. Not Insured by the MFIC (Martian Financial Institutions
-                  Commission) or Any Martian Government Agency 2. Not a Deposit
-                  or Other Obligation of, or Guaranteed by, the Bank or 3. Any
-                  Bank Affiliate Subject to Investment Risks, Including Possible
-                  Loss of the Principal Amount Invested
+                  <span>Produtos de investimento e seguros: </span>
+                  1. Não são garantidos pela CMVM (Comissão Marciana de Valores
+                  Mobiliários) nem por órgãos do governo marciano 2. Não
+                  constituem depósito nem obrigação do banco, e não são por ele
+                  garantidos 3. Estão sujeitos a riscos de mercado, incluindo a
+                  possibilidade de perda do valor principal investido
                   <span>
-                    Investment products and services are offered through Martian
-                    Bank Advisors. Martian Bank Advisors is a trade name used by
-                    Martian Clearing Services, LLC (MCSC) and Martian Bank
-                    Advisors Financial Network, LLC, Members MPIC (Martian
-                    Planetary Investment Commission), separate registered
-                    broker-dealers and non-bank affiliates of Martian Bank
-                    Corporation.
+                    Produtos e serviços de investimento são oferecidos pela FIAP
+                    OTEL Bank Investimentos, nome comercial utilizado por Marte
+                    Clearing Serviços Ltda. (MCS) e FIAP OTEL Bank Rede
+                    Financeira Ltda., associadas à CMIP (Comissão Marciana de
+                    Investimentos Planetários), corretoras independentes e
+                    coligadas não bancárias do FIAP OTEL Bank S.A.
                   </span>
                   <br />
                   <span>
-                    Deposit products offered by Martian Bank, M.A. Member MFDIC
-                    (Martian Financial Deposit Insurance Corporation).
+                    Produtos de depósito oferecidos pelo FIAP OTEL Bank S.A.,
+                    associado ao FGCM (Fundo Garantidor de Créditos Marciano).
                   </span>
                   <br />
-                  <span>Equal Planetary Habitat Lender</span>
+                  <span>Crédito habitacional planetário com igualdade de acesso</span>
                   <br />
                   <span>
-                    MFICO is a registered trademark of Martian Isaac Corporation
-                    in Mars and other celestial bodies.
+                    MFICO é marca registrada da Martian Isaac Corporation em
+                    Marte e demais corpos celestes.
                   </span>
                 </Card.Body>
               </Card.Text>

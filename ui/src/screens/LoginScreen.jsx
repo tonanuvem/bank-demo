@@ -13,6 +13,7 @@ import { setCredentials } from "../slices/authSlice";
 import { toast } from "react-toastify";
 import Loader from "../components/Loader";
 import "../index.css";
+import { traduzirMensagem } from "../i18n/rotulos";
 
 const LoginScreen = () => {
   const [email, setEmail] = useState("");
@@ -37,7 +38,7 @@ const LoginScreen = () => {
       const res = await login({ email, password }).unwrap();
       console.log(res);
       if (res.status === false) {
-        toast.error(res.message, {
+        toast.error(traduzirMensagem(res.message), {
           className: "toast-container-custom",
           autoClose: 500,
           hideProgressBar: true,
@@ -50,7 +51,7 @@ const LoginScreen = () => {
         return;
       }
       dispatch(setCredentials({ ...res }));
-      toast.success("Successfully logged in!", {
+      toast.success("Login realizado com sucesso!", {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -62,7 +63,7 @@ const LoginScreen = () => {
       });
       navigate("/");
     } catch (err) {
-      toast.error(err?.data?.message || err.error, {
+      toast.error(traduzirMensagem(err?.data?.message || err.error), {
         className: "toast-container-custom",
         autoClose: 500,
         hideProgressBar: true,
@@ -89,40 +90,40 @@ const LoginScreen = () => {
                   paddingBottom: "2vh",
                 }}
               >
-                Login
+                Entrar
               </h4>
 
               <Form onSubmit={submitHandler}>
                 <Form.Group className="my-4" controlId="email">
                   <Form.Control
                     type="email"
-                    placeholder="Enter email"
+                    placeholder="Informe seu e-mail"
                     value={email}
                     required
                     pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
                     onChange={(e) => setEmail(e.target.value)}
                   ></Form.Control>
                   <Form.Text muted style={{ fontSize: "1.25vh" }}>
-                    Please enter a valid email address.
+                    Informe um endereço de e-mail válido.
                   </Form.Text>
                 </Form.Group>
 
                 <Form.Group className="my-4" controlId="password">
                   <Form.Control
                     type="password"
-                    placeholder="Enter password"
+                    placeholder="Informe sua senha"
                     value={password}
                     required
                     pattern="^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$"
                     onChange={(e) => setPassword(e.target.value)}
                   ></Form.Control>
                   <Form.Text muted style={{ fontSize: "1.25vh" }}>
-                    Password must include:
-                    <div>1. at least 8 characters</div>
-                    <div>2. at least one uppercase letter</div>
-                    <div>3. at least one lowercase letter</div>
-                    <div>4. at least one digit</div>
-                    <div>5. at least one special character (@$!%*#?&)</div>
+                    A senha deve conter:
+                    <div>1. no mínimo 8 caracteres</div>
+                    <div>2. ao menos uma letra maiúscula</div>
+                    <div>3. ao menos uma letra minúscula</div>
+                    <div>4. ao menos um número</div>
+                    <div>5. ao menos um caractere especial (@$!%*#?&)</div>
                   </Form.Text>
                 </Form.Group>
 
@@ -132,7 +133,7 @@ const LoginScreen = () => {
                   variant="dark"
                   className="mt-3"
                 >
-                  Login
+                  Entrar
                 </Button>
               </Form>
 
@@ -140,7 +141,8 @@ const LoginScreen = () => {
 
               <Row className="pt-4">
                 <Col style={{ fontSize: "1.25vh" }}>
-                  New Customer? <Link to="/register">Create new account</Link>
+                  Ainda não é cliente?{" "}
+                  <Link to="/register">Abra sua conta</Link>
                 </Col>
               </Row>
             </Col>
@@ -150,10 +152,10 @@ const LoginScreen = () => {
         <Col md={6} className="rounded p-5" style={{ margin: "2vh" }}>
           <Row>
             <Col md={12} className="p-5">
-              <h1 className="text-center">$100 bonus on us!</h1>
+              <h1 className="text-center">Bônus de $100 por nossa conta!</h1>
               <p className="text-center">
-                Open an eligible account with qualifying electronic deposits and
-                get $100 bonus.
+                Abra uma conta elegível, faça depósitos eletrônicos
+                qualificados e ganhe $100 de bônus.
               </p>
             </Col>
           </Row>
