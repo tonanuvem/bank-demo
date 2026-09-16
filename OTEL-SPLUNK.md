@@ -213,6 +213,73 @@ pelo collector, não usa 4317/4318.
   `Server-Timing` ainda precisaria de `exposedHeaders` se você quiser a
   correlação também nesses dois.
 
+## Isto é OpenTelemetry ou é Splunk?
+
+Pergunta que sempre aparece em sala. A resposta curta: **a instrumentação das
+aplicações é OpenTelemetry puro**. O que é da Splunk está em duas bordas —
+um pacote fino de "distro" e o destino configurado no collector.
+
+### O que é upstream (funciona com qualquer backend)
+
+- O comando `opentelemetry-instrument` e o `opentelemetry-bootstrap`.
+- Todas as bibliotecas de instrumentação: `opentelemetry-instrumentation-flask`,
+  `-requests`, `-grpc`, `-pymongo`, `-logging`. São os pacotes do projeto
+  OpenTelemetry, sem fork.
+- Todas as variáveis `OTEL_*` usadas nos compose: `OTEL_SERVICE_NAME`,
+  `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_ENDPOINT`,
+  `OTEL_LOGS_EXPORTER`, `OTEL_METRICS_EXPORTER`, `OTEL_PYTHON_LOG_*`.
+- O protocolo OTLP (4317 gRPC / 4318 HTTP) e o receiver `fluent_forward`.
+
+### O que é da Splunk
+
+O pacote `splunk-opentelemetry` (11 módulos Python) se registra como um
+*distro* pelo entry point padrão do próprio OpenTelemetry:
+
+```
+opentelemetry_distro -> splunk_distro = splunk_otel.distro:SplunkDistro
+```
+
+Ou seja: é um plugin que o `opentelemetry-instrument` carrega, não um
+substituto. Ele importa tudo de `opentelemetry.*` e só ajusta defaults —
+propagadores (W3C + B3), limites de span sem truncagem, o header
+`Server-Timing` que fecha a correlação RUM→APM, e as variáveis `SPLUNK_*`
+(access token, realm, profiler).
+
+O resto do acoplamento vive **fora das aplicações**: os exporters
+`signalfx` e `splunk_hec` no `agent_config.yaml` do collector, e o agente
+de RUM do browser.
+
+### Prova prática
+
+Toda a validação deste repo foi feita contra um
+**`otel/opentelemetry-collector-contrib` puro** com exporter `debug` — nenhum
+componente da Splunk envolvido. Traces, logs correlacionados e o caminho do
+log driver `fluentd` funcionaram igual.
+
+### Para apontar para outro backend
+
+Troque o **exporter do collector** (`otlp` para Jaeger/Tempo/Grafana,
+`datadog`, `elasticsearch`, o que for) e, se quiser remover o último
+resquício de fornecedor, tire o `pip install splunk-opentelemetry` dos
+`Dockerfile-otel`. Os serviços, os `ENTRYPOINT` e as variáveis `OTEL_*`
+ficam exatamente como estão. O que muda é o destino, não a instrumentação.
+
+Sem a distro você perde: o `Server-Timing` (correlação RUM→APM), o
+AlwaysOn Profiling e o envio direto ao Splunk sem collector.
+
+## Sobre a plataforma das imagens
+
+Os `Dockerfile` originais fixavam `FROM --platform=linux/amd64`, o que faz o
+BuildKit avisar `FromPlatformFlagConstDisallowed` em todo build. O pin foi
+removido de todos os Dockerfiles: na EC2 (x86_64) o resultado é idêntico, e em
+máquina ARM (Apple Silicon) a imagem passa a ser construída nativamente, em vez
+de emulada. Para forçar uma arquitetura sem reintroduzir o aviso:
+
+```bash
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -f <arquivo> build
+```
+
+
 ## Ressalvas conhecidas
 
 1. **Os `Dockerfile-otel` não regeneram os `*_pb2.py`** — e isso não é preguiça,

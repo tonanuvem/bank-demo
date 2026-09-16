@@ -13,7 +13,7 @@
 #    E preciso somar o loader hook do OpenTelemetry:
 #       --experimental-loader=@opentelemetry/instrumentation/hook.mjs
 #    (suporte ESM ainda e' marcado como experimental pelo upstream)
-FROM --platform=linux/amd64 node:20
+FROM node:20
 
 WORKDIR /usr/src/app
 COPY ./package*.json /usr/src/app

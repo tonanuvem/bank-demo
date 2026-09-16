@@ -7,7 +7,7 @@
 # instrumentacao de `requests` injeta o header traceparent, o que costura o
 # trace distribuido de ponta a ponta no Splunk APM.
 
-FROM --platform=linux/amd64 python:3.12
+FROM python:3.12
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \

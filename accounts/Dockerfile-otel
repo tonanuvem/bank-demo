@@ -7,7 +7,7 @@
 
 # O agente Splunk exige Python 3.9+ (upstream recomenda 3.10+). Fixamos 3.12
 # em vez de `FROM python` (latest) para ter wheels garantidas de grpcio/pymongo.
-FROM --platform=linux/amd64 python:3.12
+FROM python:3.12
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
