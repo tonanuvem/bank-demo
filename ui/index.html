@@ -24,11 +24,15 @@
             rgba(0, 0, 0, 0.1),
             rgba(0, 0, 0, 0.1)
           ),
-          url(./src/assets/bank-background.png);
-          /* url("https://via.placeholder.com/400x400"); */
-        background-size: 100% auto;
+          url(./src/assets/bank-background.webp);
+        /* Foto com horizonte definido: `cover` + `no-repeat` evita a emenda
+           que o `repeat-y` anterior produzia (céu colado no chão a cada
+           repetição). `fixed` deixa o fundo parado enquanto o conteúdo rola
+           dentro do #root. */
+        background-size: cover;
         background-position: center;
-        background-repeat: repeat-y;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
         opacity: 1;
       }
 
