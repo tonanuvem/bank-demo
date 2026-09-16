@@ -1,0 +1,24 @@
+# Martian Bank - UI (React/Vite) + Splunk RUM (browser agent)
+#   docker build -f ui/Dockerfile-otel -t martian-bank-ui-otel ./ui
+#
+# O RUM e' 100% client-side: o navegador envia os spans DIRETO para
+# https://rum-ingest.<realm>.observability.splunkcloud.com/v1/rum.
+# Ele NAO passa pelo collector da EC2 - logo nao depende de 4317/4318.
+#
+# O token de RUM e' um token diferente do SPLUNK_ACCESS_TOKEN de ingest:
+# precisa ter o escopo "RUM token" (Settings > Access Tokens). Ele fica
+# publico no HTML por design - nunca use aqui o token de ingest/API.
+FROM --platform=linux/amd64 node:18-alpine
+
+WORKDIR /bankapp
+EXPOSE 3000
+
+COPY package.json package-lock.json ./
+RUN npm install --silent
+COPY . ./
+
+COPY otel-rum-entrypoint.sh /usr/local/bin/otel-rum-entrypoint.sh
+RUN chmod +x /usr/local/bin/otel-rum-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/otel-rum-entrypoint.sh"]
+CMD ["npm", "run", "ui"]

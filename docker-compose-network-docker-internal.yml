@@ -1,0 +1,263 @@
+# =============================================================================
+# Martian Bank + Splunk Observability
+# VARIANTE B: rede bridge + extra_hosts host.docker.internal:host-gateway
+# =============================================================================
+#   docker compose -f docker-compose-network-docker-internal.yml up -d --build
+#
+# !!!!!!!!!!!!!!!!!!!!!! PRE-REQUISITO OBRIGATORIO !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Esta variante NAO funciona com a sua config atual do collector.
+# Hoje ele escuta em 127.0.0.1:4317 (loopback da EC2). `host.docker.internal`
+# resolve para o IP do gateway da bridge (ex.: 172.17.0.1), que o collector
+# nao esta escutando -> "connection refused" em todos os servicos.
+#
+# Corrija ANTES de subir:
+#   echo 'SPLUNK_LISTEN_INTERFACE=0.0.0.0' | sudo tee -a /etc/otel/collector/splunk-otel-collector.conf
+#   sudo systemctl restart splunk-otel-collector
+#   sudo ss -lntp | grep -E '4317|4318'     # deve mostrar 0.0.0.0:4317
+#
+# SEGURANCA: 0.0.0.0 tambem expoe 4317/4318 na interface publica da EC2.
+# Garanta que o Security Group NAO libera 4317/4318 para 0.0.0.0/0.
+# Alternativa mais restrita: apontar para o IP do docker0 em vez de 0.0.0.0.
+# (o nome da variavel pode mudar entre versoes do collector; se nao pegar,
+#  edite direto os endpoints do receiver otlp em
+#  /etc/otel/collector/agent_config.yaml)
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#
+# VANTAGENS desta variante:
+#   - isolamento de rede real (mais parecido com producao/k8s)
+#   - DNS interno: service-to-service por nome (accounts, dashboard, ...)
+#   - `ports:` funciona, sem disputar portas com a EC2
+#
+# MONGODB: usa o `martian-mongodb` que ja roda na EC2, via host.docker.internal
+# -> os dois compose files compartilham a MESMA base, entao voce pode
+# alternar entre as variantes sem perder os dados de teste.
+# =============================================================================
+
+name: martianbank-otel-hg
+
+x-extra-hosts: &extra-hosts
+  - "host.docker.internal:host-gateway"
+
+x-otel-common: &otel-common
+  # AQUI esta a unica diferenca conceitual em relacao ao host mode:
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4317"
+  OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=${DEPLOYMENT_ENV:-lab-fiap},service.namespace=martian-bank,service.version=${APP_VERSION:-1.0.0}"
+  OTEL_METRICS_EXPORTER: "${OTEL_METRICS_EXPORTER:-none}"
+  OTEL_LOGS_EXPORTER: "${OTEL_LOGS_EXPORTER:-none}"
+  SPLUNK_PROFILER_ENABLED: "${SPLUNK_PROFILER_ENABLED:-false}"
+
+x-otel-python: &otel-python
+  <<: *otel-common
+  OTEL_PYTHON_LOG_CORRELATION: "true"
+
+# ----- logs de containers que NAO falam OTLP (Node, nginx, UI) -----
+# Usa o log driver `fluentd` do proprio Docker apontando para o receiver
+# fluent_forward que o agent_config.yaml da Splunk JA expoe em :8006.
+#
+# DETALHE IMPORTANTE: quem abre essa conexao e' o DAEMON do Docker, no host -
+# nao o container. Por isso 127.0.0.1:8006 funciona nas DUAS variantes de rede,
+# e nao exige SPLUNK_LISTEN_INTERFACE=0.0.0.0 (so o OTLP exige).
+#
+# fluentd-async=true e' OBRIGATORIO: testado, sem ele o container se recusa a
+# subir enquanto o collector estiver fora do ar.
+#
+# `docker logs` continua funcionando (dual logging do Docker) - tambem testado.
+x-fluentd-logging: &fluentd-logging
+  driver: fluentd
+  options:
+    fluentd-address: "tcp://127.0.0.1:8006"
+    fluentd-async: "true"
+    fluentd-max-retries: "10"
+    tag: "martianbank.{{.Name}}"
+    labels: "service.name,deployment.environment"
+
+services:
+
+  # ---------------------------------------------------------------- dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile-otel
+    image: martian-bank-dashboard-otel
+    hostname: dashboard
+    ports:
+      - "5000:5000"
+    restart: always
+    extra_hosts: *extra-hosts
+    networks: [bankapp-network]
+    depends_on: [accounts, transactions, loan]
+    environment:
+      <<: *otel-python
+      OTEL_SERVICE_NAME: dashboard
+      DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/martianbank}"
+      SERVICE_PROTOCOL: http
+      # DNS interno do compose faz o resto
+      ACCOUNT_HOST: accounts
+      TRANSACTION_HOST: transactions
+      LOAN_HOST: loan
+      CUSTOMER_AUTH_HOST: customer-auth
+      ATM_LOCATOR_HOST: atm-locator
+
+  # ----------------------------------------------------------------- accounts
+  accounts:
+    build:
+      context: .
+      dockerfile: accounts/Dockerfile-otel
+    image: martian-bank-accounts-otel
+    hostname: accounts
+    restart: always
+    extra_hosts: *extra-hosts
+    networks: [bankapp-network]
+    environment:
+      <<: *otel-python
+      OTEL_SERVICE_NAME: accounts
+      DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/martianbank}"
+      SERVICE_PROTOCOL: http
+
+  # ------------------------------------------------------------- transactions
+  transactions:
+    build:
+      context: .
+      dockerfile: transactions/Dockerfile-otel
+    image: martian-bank-transactions-otel
+    hostname: transactions
+    restart: always
+    extra_hosts: *extra-hosts
+    networks: [bankapp-network]
+    environment:
+      <<: *otel-python
+      OTEL_SERVICE_NAME: transactions
+      DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/martianbank}"
+      SERVICE_PROTOCOL: http
+
+  # --------------------------------------------------------------------- loan
+  loan:
+    build:
+      context: .
+      dockerfile: loan/Dockerfile-otel
+    image: martian-bank-loan-otel
+    hostname: loan
+    restart: always
+    extra_hosts: *extra-hosts
+    networks: [bankapp-network]
+    environment:
+      <<: *otel-python
+      OTEL_SERVICE_NAME: loan
+      DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/martianbank}"
+      SERVICE_PROTOCOL: http
+
+  # ------------------------------------------------------------ customer-auth
+  customer-auth:
+    build:
+      context: ./customer-auth
+      dockerfile: Dockerfile-otel
+    image: martian-bank-customer-auth-otel
+    hostname: customer-auth
+    ports:
+      - "8000:8000"
+    restart: always
+    extra_hosts: *extra-hosts
+    networks: [bankapp-network]
+    environment:
+      <<: *otel-common
+      OTEL_SERVICE_NAME: customer-auth
+      # ATENCAO: porta 4318, nao 4317. Testado: o @splunk/otel 4.x exporta em
+      # OTLP/HTTP por padrao (diferente do agente Python, que usa gRPC). Apontar
+      # o Node para 4317 faz o agente instrumentar tudo certinho e depois falhar
+      # calado no envio: "Parse Error: Expected HTTP/" - zero spans no Splunk.
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      PORT: 8000
+      DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/martianbank}"
+    # stdout deste container -> fluent_forward:8006 -> Log Observer
+    logging: *fluentd-logging
+    labels:
+      service.name: customer-auth
+      deployment.environment: "${DEPLOYMENT_ENV:-lab-fiap}"
+
+
+  # -------------------------------------------------------------- atm-locator
+  atm-locator:
+    build:
+      context: ./atm-locator
+      dockerfile: Dockerfile-otel
+    image: martian-bank-atm-locator-otel
+    hostname: atm-locator
+    ports:
+      - "8001:8001"
+    restart: always
+    extra_hosts: *extra-hosts
+    networks: [bankapp-network]
+    environment:
+      <<: *otel-common
+      OTEL_SERVICE_NAME: atm-locator
+      # ATENCAO: porta 4318, nao 4317. Testado: o @splunk/otel 4.x exporta em
+      # OTLP/HTTP por padrao (diferente do agente Python, que usa gRPC). Apontar
+      # o Node para 4317 faz o agente instrumentar tudo certinho e depois falhar
+      # calado no envio: "Parse Error: Expected HTTP/" - zero spans no Splunk.
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      PORT: 8001
+      DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/martianbank}"
+    # stdout deste container -> fluent_forward:8006 -> Log Observer
+    logging: *fluentd-logging
+    labels:
+      service.name: atm-locator
+      deployment.environment: "${DEPLOYMENT_ENV:-lab-fiap}"
+
+
+  # ----------------------------------------------------------------------- ui
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile-otel
+    image: martian-bank-ui-otel
+    hostname: ui
+    ports:
+      - "3000:3000"
+    restart: always
+    networks: [bankapp-network]
+    environment:
+      SPLUNK_RUM_TOKEN: "${SPLUNK_RUM_TOKEN:-}"
+      SPLUNK_RUM_REALM: "${SPLUNK_REALM:-us1}"
+      SPLUNK_RUM_APP_NAME: "${SPLUNK_RUM_APP_NAME:-martian-bank-ui}"
+      DEPLOYMENT_ENV: "${DEPLOYMENT_ENV:-lab-fiap}"
+      APP_VERSION: "${APP_VERSION:-1.0.0}"
+    # stdout deste container -> fluent_forward:8006 -> Log Observer
+    logging: *fluentd-logging
+    labels:
+      service.name: martian-bank-ui
+      deployment.environment: "${DEPLOYMENT_ENV:-lab-fiap}"
+
+
+  # -------------------------------------------------------------------- nginx
+  nginx:
+    build:
+      context: ./nginx
+    image: martian-bank-nginx
+    hostname: nginx
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on: [ui, customer-auth, atm-locator, dashboard]
+    networks: [bankapp-network]
+    # stdout deste container -> fluent_forward:8006 -> Log Observer
+    logging: *fluentd-logging
+    labels:
+      service.name: nginx
+      deployment.environment: "${DEPLOYMENT_ENV:-lab-fiap}"
+
+
+  # ------------------------------------------------------------------- locust
+  locust:
+    build:
+      context: ./performance_locust
+    image: martian-bank-locust
+    hostname: locust
+    ports:
+      - "8089:8089"
+    restart: always
+    networks: [bankapp-network]
+    profiles: ["load"]
+
+networks:
+  bankapp-network:
+    driver: bridge

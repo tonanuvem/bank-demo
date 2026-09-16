@@ -1,0 +1,50 @@
+# Martian Bank - dashboard (API gateway Flask) + Splunk OpenTelemetry Python
+# Build a partir da RAIZ do repo:
+#   docker build -f dashboard/Dockerfile-otel -t martian-bank-dashboard-otel .
+#
+# Este e' o servico mais importante para o APM: e' ele que chama accounts,
+# transactions, loan, customer-auth e atm-locator via `requests`. A
+# instrumentacao de `requests` injeta o header traceparent, o que costura o
+# trace distribuido de ponta a ponta no Splunk APM.
+
+FROM --platform=linux/amd64 python:3.12
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN mkdir /service
+COPY protobufs/ /service/protobufs/
+COPY dashboard/ /service/dashboard/
+WORKDIR /service/dashboard
+
+RUN python -m pip install --upgrade pip \
+ && python -m pip install -r requirements.txt
+
+# Splunk Distribution of OpenTelemetry Python
+RUN python -m pip install splunk-opentelemetry \
+ && opentelemetry-bootstrap -a install
+
+# NAO regeneramos os *_pb2.py: o splunk-opentelemetry prende protobuf<7 (via
+# opentelemetry-opamp-client) enquanto o grpcio-tools atual gera gencode 7.x,
+# e o protobuf recusa gencode mais novo que o runtime (o container nem sobe).
+# Os *_pb2.py versionados no repo usam gencode antigo e funcionam. Para regerar:
+# RUN python -m pip install "grpcio-tools==1.81.1"
+# RUN python -m grpc_tools.protoc -I ../protobufs --python_out=. --grpc_python_out=. ../protobufs/accounts.proto
+# RUN python -m grpc_tools.protoc -I ../protobufs --python_out=. --grpc_python_out=. ../protobufs/loan.proto
+# RUN python -m grpc_tools.protoc -I ../protobufs --python_out=. --grpc_python_out=. ../protobufs/transaction.proto
+
+# LOGS: silencia o ruido ocioso do driver do Mongo (heartbeat a cada 10s),
+# mantendo pymongo.command (queries reais, correlacionadas com o trace).
+RUN sed -i '/^logging.basicConfig(level=logging.DEBUG)$/a for _n in ("pymongo.topology", "pymongo.connection", "pymongo.serverSelection"): logging.getLogger(_n).setLevel(logging.WARNING)' dashboard.py
+
+# CORS: expoe Server-Timing, que e' onde o agente publica o traceparent do span
+# do servidor. Sem isso o navegador nao consegue ler o header em requisicoes
+# cross-origin (UI:3000 -> dashboard:5000) e a correlacao RUM->APM nao fecha.
+RUN sed -i 's/^CORS(app)$/CORS(app, expose_headers=["Server-Timing", "Traceparent"])/' dashboard.py \
+ && grep -n "CORS(app" dashboard.py || true
+
+EXPOSE 5000
+ENV FLASK_APP=dashboard.py
+
+ENTRYPOINT ["opentelemetry-instrument", "flask", "run", "--host=0.0.0.0", "--port=5000"]

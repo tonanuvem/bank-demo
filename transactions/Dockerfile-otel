@@ -1,0 +1,64 @@
+# Martian Bank - transactions + Splunk Distribution of OpenTelemetry Python
+# Build a partir da RAIZ do repo:
+#   docker build -f transactions/Dockerfile-otel -t martian-bank-transactions-otel .
+#
+# Nao ha alteracao no repo: os `sed` abaixo mudam apenas a copia dentro da
+# imagem. Toda a instrumentacao vem do wrapper `opentelemetry-instrument`.
+
+# O agente Splunk exige Python 3.9+ (upstream recomenda 3.10+). Fixamos 3.12
+# em vez de `FROM python` (latest) para ter wheels garantidas de grpcio/pymongo.
+FROM --platform=linux/amd64 python:3.12
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN mkdir /service
+COPY protobufs/ /service/protobufs/
+COPY transactions/ /service/transactions/
+WORKDIR /service/transactions
+
+RUN python -m pip install --upgrade pip \
+ && python -m pip install -r requirements.txt
+
+# ---------------------------------------------------------------------------
+# Splunk Distribution of OpenTelemetry Python
+#   1) splunk-opentelemetry      -> distro Splunk (W3C+B3, limites de span, SPLUNK_*)
+#   2) opentelemetry-bootstrap   -> instala a instrumentacao dos pacotes ja
+#                                   presentes (flask, requests, grpc, pymongo, logging)
+# A ORDEM IMPORTA: rode depois do requirements.txt, senao nada e' detectado.
+# ---------------------------------------------------------------------------
+RUN python -m pip install splunk-opentelemetry \
+ && opentelemetry-bootstrap -a install
+
+# ---------------------------------------------------------------------------
+# NAO regeneramos os *_pb2.py aqui (o Dockerfile original faz `grpc_tools.protoc`).
+#
+# MOTIVO (testado): o splunk-opentelemetry traz opentelemetry-opamp-client, que
+# exige protobuf<7.0 -> o runtime cai para 6.33.x. Mas o grpcio-tools atual
+# (1.84) gera codigo com gencode 7.35.1, e protobuf recusa rodar gencode mais
+# novo que o runtime:
+#   VersionError: gencode 7.35.1 runtime 6.33.6
+# O container nem sobe. Os arquivos *_pb2.py ja versionados no repo usam gencode
+# antigo e funcionam com qualquer runtime moderno, entao basta nao sobrescreve-los.
+#
+# Se algum dia voce alterar os .proto e precisar regerar, fixe um grpcio-tools
+# cujo protoc case com protobuf 6.x e descomente as duas linhas:
+# RUN python -m pip install "grpcio-tools==1.81.1"
+# RUN python -m grpc_tools.protoc -I ../protobufs --python_out=. --grpc_python_out=. ../protobufs/transaction.proto
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# LOGS: a app faz logging.basicConfig(level=DEBUG), o que faz o pymongo despejar
+# um "Server heartbeat" a cada 10s POR CLIENTE, mesmo sem trafego nenhum - isso
+# inunda o Log Observer e queima cota de ingestao. Silenciamos so os loggers
+# ociosos do driver e mantemos `pymongo.command` (as queries de verdade, que
+# saem correlacionadas com o trace).
+# ---------------------------------------------------------------------------
+RUN sed -i '/^logging.basicConfig(level=logging.DEBUG)$/a for _n in ("pymongo.topology", "pymongo.connection", "pymongo.serverSelection"): logging.getLogger(_n).setLevel(logging.WARNING)' transaction.py
+
+EXPOSE 50052
+
+# RUN sed -i "s/debug=True/debug=False/" transaction.py
+
+ENTRYPOINT ["opentelemetry-instrument", "python", "transaction.py"]

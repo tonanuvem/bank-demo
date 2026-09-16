@@ -1,0 +1,37 @@
+# Martian Bank - customer-auth + Splunk Distribution of OpenTelemetry JS
+#   docker build -f customer-auth/Dockerfile-otel -t martian-bank-customer-auth-otel ./customer-auth
+#
+# ATENCAO (2 mudancas obrigatorias em relacao ao Dockerfile original):
+#
+# 1) node:14 -> node:20
+#    O @splunk/otel 4.x exige Node ^18.19 ou >= 20.6. Node 14 esta em EOL e
+#    nao tem as APIs de loader que a instrumentacao ESM precisa.
+#
+# 2) Este servico e' ESM ("type": "module" no package.json). Em ESM,
+#    a palavra-chave import NAO passa por Module._load, entao o classico
+#    `-r @splunk/otel/instrument` sozinho NAO instrumenta express/mongoose.
+#    E preciso somar o loader hook do OpenTelemetry:
+#       --experimental-loader=@opentelemetry/instrumentation/hook.mjs
+#    (suporte ESM ainda e' marcado como experimental pelo upstream)
+FROM --platform=linux/amd64 node:20
+
+WORKDIR /usr/src/app
+COPY ./package*.json /usr/src/app
+
+RUN npm install
+
+# --- Splunk Distribution of OpenTelemetry JS ---
+# @opentelemetry/instrumentation e' dependencia transitiva do @splunk/otel, mas
+# instalamos explicitamente porque referenciamos o hook.mjs dele na linha de
+# comando do node.
+RUN npm install --no-save @splunk/otel @opentelemetry/instrumentation
+
+COPY . ./
+
+EXPOSE 8000
+
+# Equivalente instrumentado de "npm start" (node server.js)
+CMD ["node", \
+     "--experimental-loader=@opentelemetry/instrumentation/hook.mjs", \
+     "--require", "@splunk/otel/instrument", \
+     "server.js"]
