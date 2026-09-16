@@ -85,84 +85,74 @@ docker compose -f docker-compose-network-docker-internal.yml up -d --build
 
 ## Logs
 
-Duas rotas, de propósito — cada linguagem pela via que realmente funciona nela.
+> **Correção importante.** A orientação anterior aqui dizia para preencher
+> `SPLUNK_HEC_TOKEN` e os logs chegariam ao Log Observer. **Isso não funciona
+> mais.** O Splunk Observability Cloud não aceita ingestão direta de logs: o
+> Log Observer nativo foi descontinuado em favor do **Log Observer Connect**,
+> que lê logs de um Splunk Cloud/Enterprise em vez de recebê-los.
+>
+> Verificável em um comando, sem token nenhum:
+>
+> ```
+> POST https://ingest.us1.observability.splunkcloud.com/v1/log   -> 404
+> POST https://ingest.us1.signalfx.com/v1/log                    -> 404
+> POST https://ingest.us1.observability.splunkcloud.com/v2/datapoint -> 401
+> ```
+>
+> O `401` no endpoint de métricas/traces prova que o host está vivo e só
+> recusa por falta de credencial. O `404` no `/v1/log` é o caminho não
+> existindo. Com o exporter ligado contra ele, o collector entra em **retry
+> infinito**, enchendo o journal de `Exporting failed`.
 
-### 1. Python → OTLP (com correlação de trace)
+Por isso o default passou a ser `OTEL_LOGS_EXPORTER=none`, e o log driver
+`fluentd` está comentado nos dois compose. **Os traces (APM) não são afetados**
+— usam outro pipeline, com outro exporter.
 
-`OTEL_LOGS_EXPORTER=otlp` faz o `opentelemetry-instrumentation-logging` plugar um
-handler na raiz do `logging`. Cada `LogRecord` sai com `trace_id`/`span_id`
-nativos, o que acende o **Related Content** do Splunk (do span você pula direto
-para os logs daquela requisição).
+### Como os logs foram implementados (e como religar)
 
-Validado localmente: de 4 spans gerados por uma chamada, 9 registros de log
-saíram carregando o mesmo `trace_id`.
+A implementação continua no repo, pronta, em duas rotas:
 
-Não use `OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true` — está depreciado
-e o próprio agente avisa no boot. Sem ele, o handler moderno assume e passa a
-respeitar `OTEL_PYTHON_LOG_HANDLER_LEVEL`.
+| | Como | Por quê |
+|---|---|---|
+| Python (4 serviços) | OTLP → `otlp:4317` | correlação nativa: `trace_id`/`span_id` dentro do LogRecord |
+| Node, nginx, UI | log driver `fluentd` → `fluent_forward:8006` | o agente JS só coleta winston/pino/bunyan; esses apps usam `console.log` e `morgan` |
 
-### 2. Node / nginx / UI → log driver `fluentd`
+Para religar, é preciso um destino que aceite HEC — um Splunk Cloud ou
+Enterprise, com o Log Observer Connect ligado por cima:
 
-O agente JS só coleta log de `winston`/`pino`/`bunyan`. Estes dois serviços usam
-`console.log` e `morgan`, que o agente **não** captura. Então o stdout do
-container vai pelo log driver `fluentd` do próprio Docker para o receiver
-`fluent_forward`, que o `agent_config.yaml` da Splunk já expõe em `:8006`.
+1. Aponte o collector para ele:
+   `SPLUNK_HEC_URL=https://<host>:8088/services/collector` e
+   `SPLUNK_HEC_TOKEN=<token do HEC>` em
+   `/etc/otel/collector/splunk-otel-collector.conf`.
+2. `OTEL_LOGS_EXPORTER=otlp` no `.env`.
+3. Descomente `logging: *fluentd-logging` nos serviços dos compose.
 
-```yaml
-logging:
-  driver: fluentd
-  options:
-    fluentd-address: "tcp://127.0.0.1:8006"
-    fluentd-async: "true"
-    tag: "martianbank.{{.Name}}"
-    labels: "service.name,deployment.environment"
-```
+O `docker-run-demo-bank.sh` testa o endpoint sozinho antes de decidir, e
+respeita `SPLUNK_HEC_URL`/`SPLUNK_HEC_TOKEN` se você passar no ambiente.
 
-Três detalhes que só aparecem testando:
+Três detalhes do log driver `fluentd` que só apareceram testando, e que
+continuam valendo quando for religado:
 
-- **`127.0.0.1` funciona nas duas variantes de rede.** Quem abre essa conexão é o
+- **`127.0.0.1` funciona nas duas variantes de rede.** Quem abre a conexão é o
   *daemon* do Docker, no host — não o container. Só o caminho OTLP precisa do
   `SPLUNK_LISTEN_INTERFACE=0.0.0.0`.
-- **`fluentd-async=true` é obrigatório.** Sem ele, testei: o container **se recusa
-  a subir** enquanto o collector estiver fora do ar.
-- **`docker logs` continua funcionando** (dual logging do Docker) — também testado.
-
-As labels `service.name` e `deployment.environment` chegam como atributos do log,
-que é o que o Log Observer usa para casar com os serviços do APM.
-
-### Pré-requisito: o token do HEC
-
-O pipeline de logs do `agent_config.yaml` exporta via `splunk_hec`, que usa
-`${SPLUNK_HEC_TOKEN}`. O seu está **vazio** — sem isso nenhum log chega, pelas
-duas rotas. No Splunk Observability o HEC de logs usa o próprio access token da
-org (e o seu `SPLUNK_HEC_URL` já aponta para `/v1/log`):
-
-```bash
-sudo sed -i "s|^SPLUNK_HEC_TOKEN=.*|SPLUNK_HEC_TOKEN=<seu access token>|" /etc/otel/collector/splunk-otel-collector.conf
-sudo systemctl restart splunk-otel-collector
-```
-
-O `docker-run-demo-bank.sh` faz isso sozinho.
+- **`fluentd-async=true` é obrigatório.** Sem ele o container **se recusa a
+  subir** enquanto o collector estiver fora do ar.
+- **`docker logs` continua funcionando** (dual logging do Docker).
 
 ### Volume de log
 
-As apps chamam `logging.basicConfig(level=logging.DEBUG)`, e nesse nível o driver
-do Mongo despeja um `Server heartbeat` a cada 10s **por cliente, mesmo sem
-tráfego nenhum**. Numa medição local isso foi de ~80 registros para ~12 ao
-silenciar só os loggers ociosos do pymongo — o que os `Dockerfile-otel` já fazem:
+As apps chamam `logging.basicConfig(level=logging.DEBUG)`, e nesse nível o
+driver do Mongo despeja um `Server heartbeat` a cada 10s **por cliente, mesmo
+sem tráfego**. Numa medição local isso foi de ~80 registros para ~12 ao
+silenciar só os loggers ociosos do pymongo — o que os `Dockerfile-otel` já
+fazem, mantendo `pymongo.command` (as queries reais, correlacionadas).
 
-```python
-for _n in ("pymongo.topology", "pymongo.connection", "pymongo.serverSelection"):
-    logging.getLogger(_n).setLevel(logging.WARNING)
+### Enquanto isso, os logs locais
+
+```bash
+docker compose -f docker-compose-network-mode-host.yml logs -f dashboard
 ```
-
-`pymongo.command` fica ligado de propósito: são as queries reais, e elas saem
-correlacionadas com o trace.
-
-Se ainda assim for muito, existe `OTEL_PYTHON_LOG_HANDLER_LEVEL=info` (comentado
-no compose) — mas cuidado: as apps logam quase tudo em DEBUG, então `info` faz
-sumir justamente as mensagens da aplicação e, com elas, a correlação.
-
 
 ## Verificação
 
@@ -181,6 +171,22 @@ No Splunk: **APM > Services**, filtrando por `Environment = lab-fiap`. Devem
 aparecer `dashboard`, `accounts`, `transactions`, `loan`, `customer-auth`,
 `atm-locator`. O `dashboard` é o nó central — ele chama os outros via
 `requests`, e é essa instrumentação que gera o trace distribuído.
+
+### Os 404 na raiz dos serviços Node são esperados
+
+`customer-auth` e `atm-locator` não têm rota em `/` — as rotas vivem em
+`/api/users` e `/api/atm`. Um `curl http://localhost:8000` devolve **404 do
+próprio Express**, o que significa que o serviço está no ar. Os dois expõem
+**Swagger UI em `/docs`** (e o JSON em `/docs.json`), que é o que o script usa
+como teste de saúde, já que devolve 200 e exercita a aplicação de verdade.
+
+Os serviços Python (`dashboard`, `accounts`, `transactions`, `loan`) não têm
+Swagger. O `dashboard` responde 200 em `/` com `"Dashboard is running..."`.
+
+Um detalhe que engana: `POST /api/atm` sem a barra final bate no
+`@app.route("/api/atm/")` do dashboard e recebe um 308 de redirecionamento,
+que o `curl` não segue em POST por padrão. Use `/api/atm/`.
+
 
 ## Pré-requisito da UI (independe de OTel)
 

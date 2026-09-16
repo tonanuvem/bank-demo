@@ -33,7 +33,7 @@
 # alternar entre as variantes sem perder os dados de teste.
 # =============================================================================
 
-name: martianbank-otel-hg
+name: fiapbank-otel-hg
 
 x-extra-hosts: &extra-hosts
   - "host.docker.internal:host-gateway"
@@ -168,8 +168,13 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
       PORT: 8000
       DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/martianbank}"
-    # stdout deste container -> fluent_forward:8006 -> Log Observer
-    logging: *fluentd-logging
+    # DESATIVADO: o Splunk Observability Cloud nao aceita mais ingestao direta
+    # de logs (Log Observer nativo -> Log Observer Connect), entao o exporter
+    # splunk_hec do collector responde 404 e entra em retry infinito. Mandar
+    # stdout para o fluent_forward so alimentaria esse loop.
+    # Para religar (ex.: apontando o collector para um Splunk Enterprise com
+    # HEC), descomente as duas linhas abaixo:
+    # logging: *fluentd-logging
     labels:
       service.name: customer-auth
       deployment.environment: "${DEPLOYMENT_ENV:-lab-fiap}"
@@ -197,8 +202,13 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
       PORT: 8001
       DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/martianbank}"
-    # stdout deste container -> fluent_forward:8006 -> Log Observer
-    logging: *fluentd-logging
+    # DESATIVADO: o Splunk Observability Cloud nao aceita mais ingestao direta
+    # de logs (Log Observer nativo -> Log Observer Connect), entao o exporter
+    # splunk_hec do collector responde 404 e entra em retry infinito. Mandar
+    # stdout para o fluent_forward so alimentaria esse loop.
+    # Para religar (ex.: apontando o collector para um Splunk Enterprise com
+    # HEC), descomente as duas linhas abaixo:
+    # logging: *fluentd-logging
     labels:
       service.name: atm-locator
       deployment.environment: "${DEPLOYMENT_ENV:-lab-fiap}"
@@ -221,8 +231,13 @@ services:
       SPLUNK_RUM_APP_NAME: "${SPLUNK_RUM_APP_NAME:-martian-bank-ui}"
       DEPLOYMENT_ENV: "${DEPLOYMENT_ENV:-lab-fiap}"
       APP_VERSION: "${APP_VERSION:-1.0.0}"
-    # stdout deste container -> fluent_forward:8006 -> Log Observer
-    logging: *fluentd-logging
+    # DESATIVADO: o Splunk Observability Cloud nao aceita mais ingestao direta
+    # de logs (Log Observer nativo -> Log Observer Connect), entao o exporter
+    # splunk_hec do collector responde 404 e entra em retry infinito. Mandar
+    # stdout para o fluent_forward so alimentaria esse loop.
+    # Para religar (ex.: apontando o collector para um Splunk Enterprise com
+    # HEC), descomente as duas linhas abaixo:
+    # logging: *fluentd-logging
     labels:
       service.name: martian-bank-ui
       deployment.environment: "${DEPLOYMENT_ENV:-lab-fiap}"
@@ -239,8 +254,13 @@ services:
     restart: always
     depends_on: [ui, customer-auth, atm-locator, dashboard]
     networks: [bankapp-network]
-    # stdout deste container -> fluent_forward:8006 -> Log Observer
-    logging: *fluentd-logging
+    # DESATIVADO: o Splunk Observability Cloud nao aceita mais ingestao direta
+    # de logs (Log Observer nativo -> Log Observer Connect), entao o exporter
+    # splunk_hec do collector responde 404 e entra em retry infinito. Mandar
+    # stdout para o fluent_forward so alimentaria esse loop.
+    # Para religar (ex.: apontando o collector para um Splunk Enterprise com
+    # HEC), descomente as duas linhas abaixo:
+    # logging: *fluentd-logging
     labels:
       service.name: nginx
       deployment.environment: "${DEPLOYMENT_ENV:-lab-fiap}"
