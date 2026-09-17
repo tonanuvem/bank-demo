@@ -29,7 +29,7 @@ import { getAccounts } from "../slices/accountSlice";
 import { toast } from "react-toastify";
 import Loader from "../components/Loader";
 import "../index.css";
-import { traduzirMensagem } from "../i18n/rotulos";
+import { traduzirMensagem, traduzir, tiposDeConta } from "../i18n/rotulos";
 
 const TransferScreen = () => {
   let selectedAccount = useSelector((state) => state.account.selected_account);
@@ -252,7 +252,7 @@ const TransferScreen = () => {
             className="my-3"
             style={{ display: "flex", width: "100%" }}
           >
-            <Tab eventKey="internal" title="Internal Transfers">
+            <Tab eventKey="internal" title="Transferências internas">
               <Form>
                 <Row className="mt-4">
                   <Col md={4}>
@@ -261,19 +261,19 @@ const TransferScreen = () => {
                       className="mt-5"
                       variant="dark"
                       disabled={accNo ? true : false}
-                      title={accType ? accType : "Select"}
+                      title={accType ? traduzir(accType, tiposDeConta) : "Selecione"}
                       onSelect={(option) => setAccType(option)}
                       style={{ width: "100%" }}
                     >
                       <Dropdown.Item eventKey="*required">
                         Seu tipo de conta
                       </Dropdown.Item>
-                      <Dropdown.Item eventKey="Savings">Savings</Dropdown.Item>
+                      <Dropdown.Item eventKey="Savings">Poupança</Dropdown.Item>
                       <Dropdown.Item eventKey="Checking">
-                        Checking
+                        Conta Corrente
                       </Dropdown.Item>
                       <Dropdown.Item eventKey="Investment">
-                        Investment
+                        Investimento
                       </Dropdown.Item>
                       <Dropdown.Item eventKey="Money Market">
                         Fundo DI
@@ -327,7 +327,7 @@ const TransferScreen = () => {
                       id="receiver_acc_type"
                       className="mt-5"
                       variant="dark"
-                      title={receiverAcc ? receiverAcc : "Select"}
+                      title={receiverAcc ? traduzir(receiverAcc, tiposDeConta) : "Selecione"}
                       onSelect={(e) => setReceiverAcc(e)}
                       style={{ width: "100%" }}
                       disabled={receiverAccNo ? true : false}
@@ -335,12 +335,12 @@ const TransferScreen = () => {
                       <Dropdown.Item eventKey="">
                         Tipo de conta do destinatário
                       </Dropdown.Item>
-                      <Dropdown.Item eventKey="Savings">Savings</Dropdown.Item>
+                      <Dropdown.Item eventKey="Savings">Poupança</Dropdown.Item>
                       <Dropdown.Item eventKey="Checking">
-                        Checking
+                        Conta Corrente
                       </Dropdown.Item>
                       <Dropdown.Item eventKey="Investment">
-                        Investment
+                        Investimento
                       </Dropdown.Item>
                       <Dropdown.Item eventKey="Money Market">
                         Fundo DI
@@ -475,7 +475,7 @@ const TransferScreen = () => {
               </Form>
             </Tab>
 
-            <Tab eventKey="external" title="External Transfers">
+            <Tab eventKey="external" title="Transferências externas">
               {checkingAccount ? (
                 <Form>
                   <Row className="mt-4">
@@ -485,7 +485,7 @@ const TransferScreen = () => {
                         className="mt-5"
                         variant="dark"
                         disabled
-                        title={"Checking"}
+                        title={"Conta Corrente"}
                         style={{ width: "100%" }}
                       />
                     </Col>
@@ -506,7 +506,7 @@ const TransferScreen = () => {
                         className="mt-5"
                         variant="dark"
                         disabled
-                        title={"Checking"}
+                        title={"Conta Corrente"}
                         style={{ width: "100%" }}
                       />
                     </Col>

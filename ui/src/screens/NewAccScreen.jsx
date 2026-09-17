@@ -59,7 +59,7 @@ const NewAccScreen = () => {
         if (res.response) {
           dispatch(createAccount(res));
           toast.success(
-            "Congratulations, your account has been created! We have also given you a $100 joining bonus",
+            "Parabéns, sua conta foi criada! Você também ganhou $100 de bônus de boas-vindas",
             {
               className: "toast-container-custom",
               autoClose: 2000,

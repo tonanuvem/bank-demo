@@ -112,7 +112,7 @@ const LoanScreen = () => {
           Opções de empréstimo para você
         </div>
         <CustomCard
-          title="Base Camp"
+          title="Acampamento Base"
           text={
             <>
               Taxa de juros: 5,99% · Prazo: 10 anos <br />
@@ -124,7 +124,7 @@ const LoanScreen = () => {
                   right: "1rem",
                 }}
               >
-                Eligible
+                Elegível
               </Badge>
             </>
           }
@@ -142,7 +142,7 @@ const LoanScreen = () => {
                   right: "1rem",
                 }}
               >
-                Eligible
+                Elegível
               </Badge>
             </>
           }
@@ -177,7 +177,7 @@ const LoanScreen = () => {
                 }}
                 className="card text-center p-3"
               >
-                Enrolled Loans
+                Empréstimos contratados
               </div>
               {loanInfo.map((loan) => (
                 <CustomCard
@@ -202,7 +202,7 @@ const LoanScreen = () => {
                 }}
                 className="card text-center p-3"
               >
-                Enrolled Loans
+                Empréstimos contratados
               </div>
               <h3 className="mt-5" style={{ textAlign: "center" }}>
                 Você ainda não tem empréstimos aprovados

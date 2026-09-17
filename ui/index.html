@@ -19,10 +19,15 @@
       body {
         margin: 0;
         padding: 0;
-        background-image: radial-gradient(
-            circle,
-            rgba(0, 0, 0, 0.1),
-            rgba(0, 0, 0, 0.1)
+        /* Véu branco sobre a arte: sem ele, o texto preto que fica direto
+           sobre o fundo (os filtros da tela de caixas eletrônicos, por
+           exemplo) some no meio da imagem, que é clara e muito detalhada.
+           Ajuste a legibilidade mudando só os dois 0.65 abaixo - quanto
+           maior, mais claro o fundo e mais legível o texto. Medido: 0.45
+           ainda é pouco, 0.85 apaga a arte. */
+        background-image: linear-gradient(
+            rgba(255, 255, 255, 0.65),
+            rgba(255, 255, 255, 0.65)
           ),
           url(./src/assets/bank-background.webp);
         /* Foto com horizonte definido: `cover` + `no-repeat` evita a emenda

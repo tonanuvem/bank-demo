@@ -47,7 +47,7 @@ const RegisterScreen = () => {
         console.log(res);
         dispatch(setCredentials({ ...res }));
         toast.success(
-          "Congratulations! Your account with Martian Bank has been created.",
+          "Parabéns! Sua conta no FIAP OTEL Bank foi criada.",
           {
             className: "toast-container-custom",
             autoClose: 500,

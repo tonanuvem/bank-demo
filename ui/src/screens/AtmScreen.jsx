@@ -246,13 +246,13 @@ const AtmScreen = () => {
                                 {selectedCardInfo.numberOfATMs}
                               </div>
                               <div>
-                                <strong>Accessibility: </strong>
+                                <strong>Acessibilidade: </strong>
                                 {selectedCardInfo.atmHours}
                               </div>
                             </Col>
                             <Col md={6}>
                               <div>
-                                <strong>Timings:</strong>
+                                <strong>Horários:</strong>
                               </div>
                               <div>
                                 Mon-Fri: {selectedCardInfo.timings.monFri}
