@@ -1,0 +1,47 @@
+# =============================================================================
+# Override: envia o stdout dos containers para o collector
+# =============================================================================
+#   docker compose -f docker-compose-network-mode-host.yml \
+#                  -f docker-compose-logs-fluentd.yml up -d
+#
+# Fica separado do compose principal de proposito. Este caminho so' faz
+# sentido quando existe um destino de verdade para os logs -- um Splunk
+# Enterprise recebendo por HEC, via config_splunk_enterprise.sh. Sem isso, o
+# exporter splunk_hec do collector responde 404 e entra em retry infinito.
+#
+# Cobre os servicos que NAO exportam logs por OTLP: os dois Node (o agente JS
+# so' coleta winston/pino/bunyan, e essas apps usam console.log e morgan),
+# alem do nginx e da UI. Os quatro servicos Python ja mandam por OTLP, com
+# trace_id e span_id dentro do LogRecord -- por isso ficam de fora daqui, para
+# nao duplicar.
+#
+# Detalhes que valem lembrar:
+#   - 127.0.0.1 funciona nas duas variantes de rede: quem abre a conexao e' o
+#     daemon do Docker, no host, e nao o container;
+#   - fluentd-async=true e' obrigatorio - sem ele o container se recusa a
+#     subir enquanto o collector estiver fora do ar;
+#   - `docker logs` continua funcionando (dual logging do Docker).
+# =============================================================================
+
+x-fluentd-logging: &fluentd-logging
+  driver: fluentd
+  options:
+    fluentd-address: "tcp://127.0.0.1:8006"
+    fluentd-async: "true"
+    fluentd-max-retries: "10"
+    tag: "martianbank.{{.Name}}"
+    labels: "service.name,deployment.environment"
+
+services:
+
+  customer-auth:
+    logging: *fluentd-logging
+
+  atm-locator:
+    logging: *fluentd-logging
+
+  ui:
+    logging: *fluentd-logging
+
+  nginx:
+    logging: *fluentd-logging
