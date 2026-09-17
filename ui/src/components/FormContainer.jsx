@@ -37,8 +37,8 @@ const FormContainer = ({ children, position }) => {
               <Row>
                 <Col md={12} className="p-5">
                   <img
-                    src="./src/assets/card.png"
-                    alt="card"
+                    src="./src/assets/card.webp"
+                    alt="Cartão FIAP OTEL Bank"
                     className="img-fluid"
                   />
                 </Col>
