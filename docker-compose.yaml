@@ -19,7 +19,7 @@ services:
       context: ./ui
     container_name: ui
     hostname: ui
-    image: martian-bank-ui
+    image: fiap-bank-ui
     ports:
       - "3000:3000"
     restart: always
@@ -33,7 +33,7 @@ services:
       context: ./nginx
     container_name: nginx
     hostname: nginx
-    image: martian-bank-nginx
+    image: fiap-bank-nginx
     ports:
       - "8080:8080"
     depends_on:
@@ -49,7 +49,7 @@ services:
       context: ./customer-auth
     container_name: customer-auth
     hostname: customer-auth
-    image: martian-bank-customer-auth
+    image: fiap-bank-customer-auth
     ports:
       - "8000:8000"
     env_file:
@@ -62,8 +62,8 @@ services:
     build:
       context: ./atm-locator
     container_name: atm-locator
-    hostname: martian-bank-atm-locator
-    image: martian-bank-atm-locator
+    hostname: fiap-bank-atm-locator
+    image: fiap-bank-atm-locator
     ports:
       - "8001:8001"
     env_file:
@@ -78,7 +78,7 @@ services:
     ports:
       - "5000:5000"
     restart: always
-    image: martian-bank-dashboard
+    image: fiap-bank-dashboard
     build:
       context: .
       dockerfile: dashboard/Dockerfile
@@ -95,7 +95,7 @@ services:
       dockerfile: accounts/Dockerfile
     container_name: accounts
     hostname: accounts
-    image: martian-bank-accounts
+    image: fiap-bank-accounts
     restart: always
     networks:
       - bankapp-network
@@ -106,7 +106,7 @@ services:
       dockerfile: loan/Dockerfile
     container_name: loan
     hostname: loan
-    image: martian-bank-loan
+    image: fiap-bank-loan
     restart: always
     networks:
       - bankapp-network
@@ -116,8 +116,8 @@ services:
       context: .
       dockerfile: transactions/Dockerfile
     container_name: transactions
-    hostname: martian-bank-transactions
-    image: martian-bank-transactions
+    hostname: fiap-bank-transactions
+    image: fiap-bank-transactions
     restart: always
     networks:
       - bankapp-network 
@@ -129,7 +129,7 @@ services:
     hostname: locust
     ports:
       - "8089:8089"
-    image: martian-bank-locust
+    image: fiap-bank-locust
     restart: always
     networks:
       - bankapp-network

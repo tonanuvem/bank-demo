@@ -28,7 +28,7 @@
 #   - DNS interno: service-to-service por nome (accounts, dashboard, ...)
 #   - `ports:` funciona, sem disputar portas com a EC2
 #
-# MONGODB: usa o `martian-mongodb` que ja roda na EC2, via host.docker.internal
+# MONGODB: usa o `fiap-mongodb` que ja roda na EC2, via host.docker.internal
 # -> os dois compose files compartilham a MESMA base, entao voce pode
 # alternar entre as variantes sem perder os dados de teste.
 # =============================================================================
@@ -41,7 +41,7 @@ x-extra-hosts: &extra-hosts
 x-otel-common: &otel-common
   # AQUI esta a unica diferenca conceitual em relacao ao host mode:
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4317"
-  OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=${DEPLOYMENT_ENV:-lab-fiap},service.namespace=martian-bank,service.version=${APP_VERSION:-1.0.0}"
+  OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=${DEPLOYMENT_ENV:-lab-fiap},service.namespace=fiap-bank,service.version=${APP_VERSION:-1.0.0}"
   OTEL_METRICS_EXPORTER: "${OTEL_METRICS_EXPORTER:-none}"
   OTEL_LOGS_EXPORTER: "${OTEL_LOGS_EXPORTER:-none}"
   SPLUNK_PROFILER_ENABLED: "${SPLUNK_PROFILER_ENABLED:-false}"
@@ -78,7 +78,7 @@ services:
     build:
       context: .
       dockerfile: dashboard/Dockerfile-otel
-    image: martian-bank-dashboard-otel
+    image: fiap-bank-dashboard-otel
     hostname: dashboard
     ports:
       - "5000:5000"
@@ -103,7 +103,7 @@ services:
     build:
       context: .
       dockerfile: accounts/Dockerfile-otel
-    image: martian-bank-accounts-otel
+    image: fiap-bank-accounts-otel
     hostname: accounts
     restart: always
     extra_hosts: *extra-hosts
@@ -119,7 +119,7 @@ services:
     build:
       context: .
       dockerfile: transactions/Dockerfile-otel
-    image: martian-bank-transactions-otel
+    image: fiap-bank-transactions-otel
     hostname: transactions
     restart: always
     extra_hosts: *extra-hosts
@@ -135,7 +135,7 @@ services:
     build:
       context: .
       dockerfile: loan/Dockerfile-otel
-    image: martian-bank-loan-otel
+    image: fiap-bank-loan-otel
     hostname: loan
     restart: always
     extra_hosts: *extra-hosts
@@ -151,7 +151,7 @@ services:
     build:
       context: ./customer-auth
       dockerfile: Dockerfile-otel
-    image: martian-bank-customer-auth-otel
+    image: fiap-bank-customer-auth-otel
     hostname: customer-auth
     ports:
       - "8000:8000"
@@ -185,7 +185,7 @@ services:
     build:
       context: ./atm-locator
       dockerfile: Dockerfile-otel
-    image: martian-bank-atm-locator-otel
+    image: fiap-bank-atm-locator-otel
     hostname: atm-locator
     ports:
       - "8001:8001"
@@ -219,7 +219,7 @@ services:
     build:
       context: ./ui
       dockerfile: Dockerfile-otel
-    image: martian-bank-ui-otel
+    image: fiap-bank-ui-otel
     hostname: ui
     ports:
       - "3000:3000"
@@ -228,7 +228,7 @@ services:
     environment:
       SPLUNK_RUM_TOKEN: "${SPLUNK_RUM_TOKEN:-}"
       SPLUNK_RUM_REALM: "${SPLUNK_REALM:-us1}"
-      SPLUNK_RUM_APP_NAME: "${SPLUNK_RUM_APP_NAME:-martian-bank-ui}"
+      SPLUNK_RUM_APP_NAME: "${SPLUNK_RUM_APP_NAME:-fiap-bank-ui}"
       DEPLOYMENT_ENV: "${DEPLOYMENT_ENV:-lab-fiap}"
       APP_VERSION: "${APP_VERSION:-1.0.0}"
     # DESATIVADO: o Splunk Observability Cloud nao aceita mais ingestao direta
@@ -239,7 +239,7 @@ services:
     # HEC), descomente as duas linhas abaixo:
     # logging: *fluentd-logging
     labels:
-      service.name: martian-bank-ui
+      service.name: fiap-bank-ui
       deployment.environment: "${DEPLOYMENT_ENV:-lab-fiap}"
 
 
@@ -247,7 +247,7 @@ services:
   nginx:
     build:
       context: ./nginx
-    image: martian-bank-nginx
+    image: fiap-bank-nginx
     hostname: nginx
     ports:
       - "8080:8080"
@@ -270,7 +270,7 @@ services:
   locust:
     build:
       context: ./performance_locust
-    image: martian-bank-locust
+    image: fiap-bank-locust
     hostname: locust
     ports:
       - "8089:8089"

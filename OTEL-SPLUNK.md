@@ -26,7 +26,7 @@ Instrumentação **sem alterar o código da aplicação**: tudo vive em
 | Conflito de porta | com a EC2 inteira | só nas portas publicadas |
 | Recomendação | **comece por aqui** | depois, para mostrar o cenário "prod" |
 
-As duas usam o **mesmo** `martian-mongodb` (host:27017), então dá para alternar
+As duas usam o **mesmo** `fiap-mongodb` (host:27017), então dá para alternar
 sem perder dados.
 
 ## Passo a passo
@@ -48,9 +48,9 @@ sudo lsof -i:3000 -i:5000 -i:8000 -i:8001 -i:50051 -i:50052 -i:50053
 MongoDB precisa existir:
 
 ```bash
-docker ps --format '{{.Names}}' | grep -qx martian-mongodb || \
-  docker run -d --name martian-mongodb --restart unless-stopped \
-    -p 27017:27017 -v martian-mongodb-data:/data/db mongo:7
+docker ps --format '{{.Names}}' | grep -qx fiap-mongodb || \
+  docker run -d --name fiap-mongodb --restart unless-stopped \
+    -p 27017:27017 -v fiap-mongodb-data:/data/db mongo:7
 ```
 
 Subir:

@@ -10,7 +10,7 @@
 # Variaveis esperadas:
 #   SPLUNK_RUM_TOKEN      (obrigatoria - SEM ela nada e' injetado)
 #   SPLUNK_RUM_REALM      ex: us1
-#   SPLUNK_RUM_APP_NAME   ex: martian-bank-ui
+#   SPLUNK_RUM_APP_NAME   ex: fiap-bank-ui
 #   DEPLOYMENT_ENV        ex: lab-fiap  (precisa bater com o do backend!)
 #   APP_VERSION           ex: 1.0.0
 # ---------------------------------------------------------------------------
@@ -32,7 +32,7 @@ else
       SplunkRum.init({
         realm: '${SPLUNK_RUM_REALM:-us1}',
         rumAccessToken: '${SPLUNK_RUM_TOKEN}',
-        applicationName: '${SPLUNK_RUM_APP_NAME:-martian-bank-ui}',
+        applicationName: '${SPLUNK_RUM_APP_NAME:-fiap-bank-ui}',
         deploymentEnvironment: '${DEPLOYMENT_ENV:-lab-fiap}',
         version: '${APP_VERSION:-1.0.0}',
         // Correlacao RUM -> APM: propaga o header traceparent APENAS para as
