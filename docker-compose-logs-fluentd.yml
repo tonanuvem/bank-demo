@@ -29,7 +29,7 @@ x-fluentd-logging: &fluentd-logging
     fluentd-address: "tcp://127.0.0.1:8006"
     fluentd-async: "true"
     fluentd-max-retries: "10"
-    tag: "martianbank.{{.Name}}"
+    tag: "fiapbank.{{.Name}}"
     labels: "service.name,deployment.environment"
 
 services:
