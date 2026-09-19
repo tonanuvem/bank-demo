@@ -4,11 +4,16 @@
 
 FROM python
 
-RUN mkdir /service
-COPY . /service/
 WORKDIR /service/
-RUN python -m pip install --upgrade pip
-RUN python -m pip install -r requirements.txt
+
+# As dependencias vem antes do codigo de proposito: editar um cenario invalida
+# so a ultima camada. Na ordem anterior, trocar uma linha de um .py refazia o
+# pip install inteiro -- cerca de um minuto por ajuste.
+COPY requirements.txt /service/
+RUN python -m pip install --upgrade pip \
+ && python -m pip install -r requirements.txt
+
+COPY . /service/
 
 RUN chmod +x locust.sh
 
