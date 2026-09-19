@@ -41,7 +41,12 @@ class MyUser(HttpUser):
         @task
         def get_profile(self):
             # Get Profile
-            self.client.get("/profile", json={"email": self.user_data["email"]})
+            #
+            # POST, nao GET: a rota e' router.route("/profile").post(...).put(...)
+            # -- nao ha handler de GET, e a versao com .get() esta comentada no
+            # userRoutes.js. Chamando GET, o Express respondia 404 a cada ciclo,
+            # o que sozinho produzia ~25% de erro num servico saudavel.
+            self.client.post("/profile", json={"email": self.user_data["email"]})
 
         @task
         def update_profile(self):
