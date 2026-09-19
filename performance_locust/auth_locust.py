@@ -46,13 +46,20 @@ class MyUser(HttpUser):
         @task
         def update_profile(self):
             # Update Profile
+            #
+            # A nova senha PRECISA ser guardada. Sem isso o proximo login do
+            # ciclo tenta a senha antiga e recebe 401; o cookie nao e'
+            # renovado e /profile e /logout falham em cascata. O cenario
+            # reportava ~45% de erro que era defeito do teste, nao do banco.
+            nova_senha = fake.unique.password()
             self.client.put(
                 "/profile",
                 json={
                     "email": self.user_data["email"],
-                    "password": fake.unique.password(),
+                    "password": nova_senha,
                 },
             )
+            self.user_data["password"] = nova_senha
 
         @task
         def logout(self):
