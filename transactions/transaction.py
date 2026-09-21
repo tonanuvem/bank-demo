@@ -284,6 +284,54 @@ class TransactionService(transaction_pb2_grpc.TransactionServiceServicer):
 
 
 app = Flask(__name__)
+
+# ---------------------------------------------------------------------------
+# REGRESSAO SIMULADA -- desligada por padrao (o LAB 2 liga pelo compose).
+#
+# E' o mecanismo do exercicio de Error Budget: a "versao nova" do servico
+# introduz uma regressao de performance, exatamente como um deploy ruim de
+# verdade. Fica em variavel de ambiente porque o lab precisa liga-la e
+# desliga-la em segundos, sem rebuild:
+#
+#   ATRASO_ARTIFICIAL_MS  atraso fixo por requisicao (degradacao PARCIAL:
+#                         a latencia sobe, o servico continua respondendo 200)
+#   FALHA_ARTIFICIAL_PCT  % de requisicoes que falham com 500 (degradacao
+#                         severa, para o segundo estagio do incidente)
+#
+# Por que assim e nao por limite de CPU: medido neste ambiente, o teto de CPU
+# degrada de forma imprevisivel -- sob concorrencia alta o gargalo se desloca
+# para o BFF e para o MongoDB, e o mesmo limite produz resultados diferentes
+# conforme a carga que cada aluno gerar. Num laboratorio a degradacao precisa
+# ser IGUAL para todo mundo.
+# ---------------------------------------------------------------------------
+_ATRASO_MS = int(os.getenv("ATRASO_ARTIFICIAL_MS", "0") or 0)
+# Jitter existe para a degradacao nao ser binaria: com atraso fixo, ou TODAS
+# as requisicoes passam do alvo de latencia ou NENHUMA passa, e o SLI vai de
+# 100% para 0% sem meio-termo. Com jitter parte fica abaixo e parte acima --
+# que e' como uma regressao se parece de verdade, e o que torna a decisao do
+# exercicio uma decisao e nao uma obviedade.
+_JITTER_MS = int(os.getenv("ATRASO_JITTER_MS", "0") or 0)
+_FALHA_PCT = int(os.getenv("FALHA_ARTIFICIAL_PCT", "0") or 0)
+
+if _ATRASO_MS or _FALHA_PCT:
+    import time as _time
+    import random as _random
+
+    logging.warning(
+        "regressao simulada ativa: atraso=%sms falha=%s%%", _ATRASO_MS, _FALHA_PCT
+    )
+
+    @app.before_request
+    def _regressao_simulada():
+        if _ATRASO_MS:
+            ms = _ATRASO_MS
+            if _JITTER_MS:
+                ms = _random.randint(max(0, _ATRASO_MS - _JITTER_MS), _ATRASO_MS + _JITTER_MS)
+            _time.sleep(ms / 1000.0)
+        if _FALHA_PCT and _random.randint(1, 100) <= _FALHA_PCT:
+            logging.error("regressao simulada: falhando a requisicao de proposito")
+            return jsonify(message="Internal error"), 500
+
 transaction_generic = TransactionGeneric()
 
 @app.route("/transfer", methods=["POST"])

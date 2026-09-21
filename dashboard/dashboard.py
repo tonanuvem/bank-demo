@@ -59,6 +59,48 @@ collection = db["accounts"]
 app = Flask(__name__)
 CORS(app)
 
+# ---------------------------------------------------------------------------
+# ERROS AMIGAVEIS -- desligado por padrao (LAB 2 liga pelo compose).
+#
+# Sem isto, uma excecao nao tratada faz o Flask devolver a PAGINA HTML de erro
+# 500. O frontend tenta JSON.parse nela e o cliente ve
+#   "SyntaxError: JSON.parse: unexpected character at line 1 column 1"
+# -- uma mensagem que nao significa nada para quem so' queria abrir uma conta.
+#
+# Com ERROS_AMIGAVEIS=true a resposta vira JSON com `message`, que e'
+# exatamente o campo que a UI ja procura (err?.data?.message em
+# TransferScreen.jsx), entao o cliente passa a ver
+#   "Servico temporariamente indisponivel. Tente novamente em instantes."
+# sem precisar mudar uma linha de React.
+#
+# Fica atras de variavel de ambiente porque o comportamento PADRAO e' material
+# de aula: o Encontro 1 usa justamente o SyntaxError para mostrar a distancia
+# entre a falha medida com rigor no servidor e a falha ilegivel na tela. Ligar
+# e desligar ao vivo e' o antes/depois do postmortem do Encontro 2.
+#
+# A medicao nao muda: continua sendo 5xx, o span segue marcado como erro e o
+# SLI de disponibilidade enxerga a falha do mesmo jeito.
+# ---------------------------------------------------------------------------
+if os.getenv("ERROS_AMIGAVEIS", "false").strip().lower() in ("1", "true", "yes", "sim"):
+
+    from werkzeug.exceptions import HTTPException
+
+    @app.errorhandler(Exception)
+    def _servico_indisponivel(erro):
+        # 404, 405 e afins continuam com o comportamento normal do Flask.
+        if isinstance(erro, HTTPException):
+            return erro
+        logging.exception("falha ao atender a requisicao")
+        return (
+            jsonify(
+                message="Servico temporariamente indisponivel. "
+                        "Tente novamente em instantes."
+            ),
+            503,
+        )
+
+    logging.info("ERROS_AMIGAVEIS ligado: falhas nao tratadas respondem JSON 503")
+
 
 @app.route("/")
 def render_homepage():
