@@ -39,8 +39,11 @@ x-extra-hosts: &extra-hosts
   - "host.docker.internal:host-gateway"
 
 x-otel-common: &otel-common
-  # AQUI esta a unica diferenca conceitual em relacao ao host mode:
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4317"
+  # AQUI esta a unica diferenca conceitual em relacao ao host mode.
+  # Parametrizado para que outro backend (ex.: um collector em container, na
+  # propria rede do compose) seja questao de .env, sem override de compose.
+  # O default e' o comportamento de sempre.
+  OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_ENDPOINT_GRPC:-http://host.docker.internal:4317}"
   OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=${DEPLOYMENT_ENV:-lab-fiap},service.namespace=fiap-bank,service.version=${APP_VERSION:-1.0.0}"
   OTEL_METRICS_EXPORTER: "${OTEL_METRICS_EXPORTER:-none}"
   OTEL_LOGS_EXPORTER: "${OTEL_LOGS_EXPORTER:-none}"
@@ -49,6 +52,10 @@ x-otel-common: &otel-common
 x-otel-python: &otel-python
   <<: *otel-common
   OTEL_PYTHON_LOG_CORRELATION: "true"
+  # O logging.basicConfig(DEBUG) das aplicacoes vira NO-OP: a distro OTel
+  # configura o logger raiz antes. Sem esta variavel, as mensagens DEBUG --
+  # inclusive a resposta de uma transferencia recusada -- nunca sao emitidas.
+  OTEL_PYTHON_LOG_LEVEL: "${OTEL_PYTHON_LOG_LEVEL:-info}"
 
 # ----- logs de containers que NAO falam OTLP (Node, nginx, UI) -----
 # Usa o log driver `fluentd` do proprio Docker apontando para o receiver
@@ -81,7 +88,9 @@ services:
     image: fiap-bank-dashboard-otel
     hostname: dashboard
     ports:
-      - "5000:5000"
+      # Parametrizada: em algumas maquinas a 5000 ja esta ocupada (no macOS,
+      # pelo AirPlay Receiver).
+      - "${PORTA_DASHBOARD:-5000}:5000"
     restart: always
     extra_hosts: *extra-hosts
     networks: [bankapp-network]
@@ -90,6 +99,10 @@ services:
       <<: *otel-python
       OTEL_SERVICE_NAME: dashboard
       DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/bank}"
+      # Ligado, uma falha responde JSON 503 em vez da pagina HTML de erro que
+      # o frontend transforma em "SyntaxError: JSON.parse". Desligado por
+      # padrao: o SyntaxError e' material de aula do Encontro 1.
+      ERROS_AMIGAVEIS: "${ERROS_AMIGAVEIS:-false}"
       SERVICE_PROTOCOL: http
       # DNS interno do compose faz o resto
       ACCOUNT_HOST: accounts
@@ -128,6 +141,10 @@ services:
       <<: *otel-python
       OTEL_SERVICE_NAME: transactions
       DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/bank}"
+      # Regressao simulada do exercicio de error budget. Zero = desligada.
+      ATRASO_ARTIFICIAL_MS: "${ATRASO_ARTIFICIAL_MS:-0}"
+      ATRASO_JITTER_MS: "${ATRASO_JITTER_MS:-0}"
+      FALHA_ARTIFICIAL_PCT: "${FALHA_ARTIFICIAL_PCT:-0}"
       SERVICE_PROTOCOL: http
 
   # --------------------------------------------------------------------- loan
@@ -165,7 +182,7 @@ services:
       # OTLP/HTTP por padrao (diferente do agente Python, que usa gRPC). Apontar
       # o Node para 4317 faz o agente instrumentar tudo certinho e depois falhar
       # calado no envio: "Parse Error: Expected HTTP/" - zero spans no Splunk.
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_ENDPOINT_HTTP:-http://host.docker.internal:4318}"
       PORT: 8000
       DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/bank}"
     # DESATIVADO: o Splunk Observability Cloud nao aceita mais ingestao direta
@@ -199,7 +216,7 @@ services:
       # OTLP/HTTP por padrao (diferente do agente Python, que usa gRPC). Apontar
       # o Node para 4317 faz o agente instrumentar tudo certinho e depois falhar
       # calado no envio: "Parse Error: Expected HTTP/" - zero spans no Splunk.
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_ENDPOINT_HTTP:-http://host.docker.internal:4318}"
       PORT: 8001
       DB_URL: "${DB_URL_BRIDGE:-mongodb://host.docker.internal:27017/bank}"
     # DESATIVADO: o Splunk Observability Cloud nao aceita mais ingestao direta
