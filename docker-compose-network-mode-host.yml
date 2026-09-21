@@ -26,6 +26,8 @@
 
 name: fiapbank-otel-host
 
+# Imagens publicadas: ver o comentario equivalente na variante bridge.
+
 # ----- bloco reutilizavel: config OTel comum a todos os servicos -----
 x-otel-common: &otel-common
   # Endpoint OTLP do collector. Em host mode: localhost mesmo.
@@ -84,7 +86,7 @@ services:
     build:
       context: .
       dockerfile: dashboard/Dockerfile-otel
-    image: fiap-bank-dashboard-otel
+    image: ${REGISTRO_IMAGENS:-tonanuvem}/fiap-bank-dashboard-otel:${TAG_IMAGENS:-lab}
     network_mode: host
     restart: always
     environment:
@@ -103,7 +105,7 @@ services:
     build:
       context: .
       dockerfile: accounts/Dockerfile-otel
-    image: fiap-bank-accounts-otel
+    image: ${REGISTRO_IMAGENS:-tonanuvem}/fiap-bank-accounts-otel:${TAG_IMAGENS:-lab}
     network_mode: host
     restart: always
     environment:
@@ -117,7 +119,7 @@ services:
     build:
       context: .
       dockerfile: transactions/Dockerfile-otel
-    image: fiap-bank-transactions-otel
+    image: ${REGISTRO_IMAGENS:-tonanuvem}/fiap-bank-transactions-otel:${TAG_IMAGENS:-lab}
     network_mode: host
     restart: always
     environment:
@@ -131,7 +133,7 @@ services:
     build:
       context: .
       dockerfile: loan/Dockerfile-otel
-    image: fiap-bank-loan-otel
+    image: ${REGISTRO_IMAGENS:-tonanuvem}/fiap-bank-loan-otel:${TAG_IMAGENS:-lab}
     network_mode: host
     restart: always
     environment:
@@ -145,7 +147,7 @@ services:
     build:
       context: ./customer-auth
       dockerfile: Dockerfile-otel
-    image: fiap-bank-customer-auth-otel
+    image: ${REGISTRO_IMAGENS:-tonanuvem}/fiap-bank-customer-auth-otel:${TAG_IMAGENS:-lab}
     network_mode: host
     restart: always
     environment:
@@ -175,7 +177,7 @@ services:
     build:
       context: ./atm-locator
       dockerfile: Dockerfile-otel
-    image: fiap-bank-atm-locator-otel
+    image: ${REGISTRO_IMAGENS:-tonanuvem}/fiap-bank-atm-locator-otel:${TAG_IMAGENS:-lab}
     network_mode: host
     restart: always
     environment:
@@ -207,7 +209,7 @@ services:
     build:
       context: ./ui
       dockerfile: Dockerfile-otel
-    image: fiap-bank-ui-otel
+    image: ${REGISTRO_IMAGENS:-tonanuvem}/fiap-bank-ui-otel:${TAG_IMAGENS:-lab}
     network_mode: host
     restart: always
     environment:
