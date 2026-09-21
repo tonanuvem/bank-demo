@@ -90,7 +90,13 @@ else
     <script src="https://cdn.jsdelivr.net/npm/@grafana/faro-web-tracing@${FARO_VERSAO}/dist/bundle/faro-web-tracing.iife.js" crossorigin="anonymous"></script>
     <script>
       GrafanaFaroWebSdk.initializeFaro({
-        url: '${FARO_COLLECTOR_URL}',
+        // "auto" resolve pelo hostname que o NAVEGADOR usou -- mesma razao do
+        // apiUrls.js. Assim a mesma imagem serve localhost, IP publico e
+        // qualquer DNS, e o RUM nao depende de o instalador ter adivinhado
+        // certo o endereco externo da maquina.
+        url: ('${FARO_COLLECTOR_URL}' === 'auto')
+             ? window.location.protocol + '//' + window.location.hostname + ':8027/collect'
+             : '${FARO_COLLECTOR_URL}',
         app: {
           name: '${FARO_APP_NAME:-fiap-bank-ui}',
           version: '${APP_VERSION:-1.0.0}',
