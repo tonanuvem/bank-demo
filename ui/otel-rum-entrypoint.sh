@@ -17,6 +17,7 @@
 set -e
 
 INDEX="/bankapp/index.html"
+FARO_COLLECTOR_URL="${FARO_COLLECTOR_URL:-}"
 
 if [ -z "$SPLUNK_RUM_TOKEN" ]; then
   echo "[splunk-rum] SPLUNK_RUM_TOKEN vazio - RUM desabilitado."
@@ -57,5 +58,58 @@ SNIPPET
 
   echo "[splunk-rum] OK."
 fi
+
+# ---------------------------------------------------------------------------
+# GRAFANA FARO -- RUM do stack aberto.
+#
+# Mesmo mecanismo do bloco acima, outro fornecedor: os dois sao 100%
+# client-side e o navegador envia direto para o coletor. Nenhum dos dois passa
+# pelo backend da aplicacao.
+#
+# Ligado por FARO_COLLECTOR_URL. SEM ela, nada e' injetado -- e' o que mantem
+# esta imagem servindo tambem quem nao usa Faro.
+#
+# ATENCAO ao endereco: quem faz a requisicao e' o NAVEGADOR do aluno, nao o
+# container. Entao a URL precisa ser alcancavel de fora (o IP publico da
+# maquina, ou localhost quando o navegador roda na mesma maquina) -- nunca o
+# nome DNS interno do compose.
+# ---------------------------------------------------------------------------
+
+FARO_VERSAO="${FARO_VERSAO:-2.12.0}"
+
+if [ -z "$FARO_COLLECTOR_URL" ]; then
+  echo "[faro] FARO_COLLECTOR_URL vazio - RUM do Grafana desabilitado."
+elif grep -q "FARO-RUM-START" "$INDEX" 2>/dev/null; then
+  echo "[faro] snippet ja presente em $INDEX - nada a fazer."
+else
+  echo "[faro] injetando Faro ${FARO_VERSAO} em $INDEX (coletor: ${FARO_COLLECTOR_URL})"
+
+  cat > /tmp/faro-snippet.html <<SNIPPET
+    <!-- FARO-RUM-START (injetado por otel-rum-entrypoint.sh) -->
+    <script src="https://cdn.jsdelivr.net/npm/@grafana/faro-web-sdk@${FARO_VERSAO}/dist/bundle/faro-web-sdk.iife.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@grafana/faro-web-tracing@${FARO_VERSAO}/dist/bundle/faro-web-tracing.iife.js" crossorigin="anonymous"></script>
+    <script>
+      GrafanaFaroWebSdk.initializeFaro({
+        url: '${FARO_COLLECTOR_URL}',
+        app: {
+          name: '${FARO_APP_NAME:-fiap-bank-ui}',
+          version: '${APP_VERSION:-1.0.0}',
+          environment: '${DEPLOYMENT_ENV:-lab-fiap}'
+        },
+        instrumentations: [
+          ...GrafanaFaroWebSdk.getWebInstrumentations(),
+          new GrafanaFaroWebTracing.TracingInstrumentation()
+        ]
+      });
+    </script>
+    <!-- FARO-RUM-END -->
+SNIPPET
+
+  awk '/<\/head>/ && !done { while ((getline line < "/tmp/faro-snippet.html") > 0) print line; done=1 } { print }' \
+      "$INDEX" > /tmp/index.html.faro && cat /tmp/index.html.faro > "$INDEX"
+
+  echo "[faro] OK."
+fi
+
 
 exec "$@"

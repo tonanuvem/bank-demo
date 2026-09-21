@@ -248,6 +248,12 @@ services:
       SPLUNK_RUM_APP_NAME: "${SPLUNK_RUM_APP_NAME:-fiap-bank-ui}"
       DEPLOYMENT_ENV: "${DEPLOYMENT_ENV:-lab-fiap}"
       APP_VERSION: "${APP_VERSION:-1.0.0}"
+      # RUM do stack aberto (Grafana Faro). Vazio = desligado, que e' o padrao.
+      # Quem chama esse endereco e' o NAVEGADOR do aluno, nao o container:
+      # precisa ser alcancavel de fora, nunca o DNS interno do compose.
+      FARO_COLLECTOR_URL: "${FARO_COLLECTOR_URL:-}"
+      FARO_APP_NAME: "${FARO_APP_NAME:-fiap-bank-ui}"
+      FARO_VERSAO: "${FARO_VERSAO:-2.12.0}"
     # DESATIVADO: o Splunk Observability Cloud nao aceita mais ingestao direta
     # de logs (Log Observer nativo -> Log Observer Connect), entao o exporter
     # splunk_hec do collector responde 404 e entra em retry infinito. Mandar
