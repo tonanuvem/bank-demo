@@ -7,7 +7,7 @@
 # instrumentacao de `requests` injeta o header traceparent, o que costura o
 # trace distribuido de ponta a ponta no Splunk APM.
 
-FROM python:3.12
+FROM python:3.12.14
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -22,7 +22,10 @@ RUN python -m pip install --upgrade pip \
  && python -m pip install -r requirements.txt
 
 # Splunk Distribution of OpenTelemetry Python
-RUN python -m pip install splunk-opentelemetry \
+# 2.12.1: a versao com que o laboratorio foi validado. Ela decide a
+# convencao semantica -- os servicos Python emitem http.status_code, e
+# uma versao mais nova pode passar a emitir http.response.status_code.
+RUN python -m pip install splunk-opentelemetry==2.12.1 \
  && opentelemetry-bootstrap -a install
 
 # NAO regeneramos os *_pb2.py: o splunk-opentelemetry prende protobuf<7 (via

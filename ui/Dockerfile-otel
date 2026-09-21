@@ -8,7 +8,7 @@
 # O token de RUM e' um token diferente do SPLUNK_ACCESS_TOKEN de ingest:
 # precisa ter o escopo "RUM token" (Settings > Access Tokens). Ele fica
 # publico no HTML por design - nunca use aqui o token de ingest/API.
-FROM node:18-alpine
+FROM node:18.20.8-alpine
 
 WORKDIR /bankapp
 EXPOSE 3000

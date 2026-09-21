@@ -2,5 +2,5 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-FROM nginx
+FROM nginx:1.31.6
 COPY ./default.conf /etc/nginx/conf.d/

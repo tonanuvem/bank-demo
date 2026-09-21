@@ -1,2 +1,11 @@
-Faker
-locust
+# Versoes fixas de proposito. Sem isto, um rebuild em outra data instala outra
+# coisa -- e o modo de falha e' silencioso: a aplicacao sobe, os paineis ficam
+# vazios e ninguem tocou em nada. E' a versao da distro OTel que decide a
+# convencao semantica dos atributos (http.status_code x
+# http.response.status_code), e toda query do laboratorio depende dela.
+#
+# Para atualizar: suba o ambiente, confirme que os paineis respondem, rode
+# `pip freeze` / `npm ls --depth=0` no container e traga os numeros para ca.
+
+Faker==40.39.0
+locust==2.46.6
