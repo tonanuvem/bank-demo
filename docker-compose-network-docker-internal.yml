@@ -265,6 +265,9 @@ services:
       FARO_COLLECTOR_URL: "${FARO_COLLECTOR_URL:-}"
       FARO_APP_NAME: "${FARO_APP_NAME:-fiap-bank-ui}"
       FARO_VERSAO: "${FARO_VERSAO:-2.12.0}"
+      # A UI precisa saber em que porta o dashboard foi publicado: quem chama
+      # e' o navegador, que nao enxerga a rede interna do compose.
+      PORTA_DASHBOARD: "${PORTA_DASHBOARD:-5000}"
     # DESATIVADO: o Splunk Observability Cloud nao aceita mais ingestao direta
     # de logs (Log Observer nativo -> Log Observer Connect), entao o exporter
     # splunk_hec do collector responde 404 e entra em retry infinito. Mandar

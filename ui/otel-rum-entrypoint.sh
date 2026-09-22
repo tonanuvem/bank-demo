@@ -118,4 +118,21 @@ SNIPPET
 fi
 
 
+# ---------------------------------------------------------------------------
+# PORTA DO DASHBOARD -- injetada em tempo de execucao, como o agente de RUM.
+# O apiUrls.js le window.__FIAP_API__.dashboard e cai para 5000 se nao houver.
+# ---------------------------------------------------------------------------
+PORTA_DASHBOARD="${PORTA_DASHBOARD:-5000}"
+
+if ! grep -q "FIAP-API-START" "$INDEX" 2>/dev/null; then
+  echo "[api] dashboard na porta ${PORTA_DASHBOARD}"
+  cat > /tmp/api-snippet.html <<SNIPPET
+    <!-- FIAP-API-START (injetado por otel-rum-entrypoint.sh) -->
+    <script>window.__FIAP_API__ = { dashboard: ${PORTA_DASHBOARD} };</script>
+    <!-- FIAP-API-END -->
+SNIPPET
+  awk '/<\/head>/ && !done { while ((getline line < "/tmp/api-snippet.html") > 0) print line; done=1 } { print }' \
+      "$INDEX" > /tmp/index.html.api && cat /tmp/index.html.api > "$INDEX"
+fi
+
 exec "$@"

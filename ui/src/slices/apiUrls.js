@@ -17,19 +17,23 @@
  * Com window.location, a mesma imagem serve localhost, IP publico e qualquer
  * nome DNS, sem reconstruir nem reescrever arquivo.
  *
- * LIMITE CONHECIDO: as PORTAS continuam fixas. Se o dashboard for publicado
- * em outra porta que nao a 5000 (acontece quando a 5000 ja esta ocupada na
- * maquina), a UI continuara chamando a 5000.
+ * A PORTA do dashboard tambem nao e' fixa: ela chega em window.__FIAP_API__,
+ * injetada no index.html quando o container sobe (mesmo mecanismo do agente
+ * de RUM). Sem isso, quem publicasse o dashboard em outra porta -- o que
+ * acontece quando a 5000 ja esta ocupada na maquina -- veria a UI chamando a
+ * 5000 e recebendo erro de CORS de qualquer processo que estivesse la'.
  */
 
 const HOST = window.location.hostname;
 const PROTOCOL = window.location.protocol;
+const PORTA_DASHBOARD =
+  (typeof window !== "undefined" && window.__FIAP_API__?.dashboard) || 5000;
 
 const VITE_USERS_URL = `${PROTOCOL}//${HOST}:8000/api/users/`;
 const VITE_ATM_URL = `${PROTOCOL}//${HOST}:8001/api/atm/`;
-const VITE_ACCOUNTS_URL = `${PROTOCOL}//${HOST}:5000/account/`;
-const VITE_TRANSFER_URL = `${PROTOCOL}//${HOST}:5000/transaction/`;
-const VITE_LOAN_URL = `${PROTOCOL}//${HOST}:5000/loan/`;
+const VITE_ACCOUNTS_URL = `${PROTOCOL}//${HOST}:${PORTA_DASHBOARD}/account/`;
+const VITE_TRANSFER_URL = `${PROTOCOL}//${HOST}:${PORTA_DASHBOARD}/transaction/`;
+const VITE_LOAN_URL = `${PROTOCOL}//${HOST}:${PORTA_DASHBOARD}/loan/`;
 
 const ApiUrls = {
   VITE_USERS_URL,

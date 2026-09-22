@@ -262,7 +262,23 @@ const TransferScreen = () => {
                       variant="dark"
                       disabled={accNo ? true : false}
                       title={accType ? traduzir(accType, tiposDeConta) : "Selecione"}
-                      onSelect={(option) => setAccType(option)}
+                      onSelect={(option) => {
+                        // "*required" e' o item de placeholder: escolhe-lo gravava a
+                        // string "*required" como tipo de conta.
+                        const tipo = option === "*required" ? "" : option;
+                        setAccType(tipo);
+                        // Se a conta ja' escolhida nao for desse tipo, limpa -- senao
+                        // sobra uma selecao incoerente com o filtro.
+                        if (tipo && accNo) {
+                          const atual = allAccounts.find(
+                            (a) => a.account_number === accNo
+                          );
+                          if (!atual || atual.account_type !== tipo) {
+                            setAccNo("");
+                            setBalance(null);
+                          }
+                        }
+                      }}
                       style={{ width: "100%" }}
                     >
                       <Dropdown.Item eventKey="*required">
@@ -304,19 +320,33 @@ const TransferScreen = () => {
                       disabled={accNo ? true : false}
                     >
                       <option value="">Selecione a conta</option>
-                      {allAccounts.map((account) => {
-                        if (account.account_number !== receiverAccNo) {
-                          return (
-                            <option
-                              key={account.account_number}
-                              value={account.account_number}
-                            >
-                              {account.account_number}
-                            </option>
-                          );
-                        }
-                        return null;
-                      })}
+                      {/* Lista FILTRADA pelo tipo escolhido. Sem o filtro, escolher
+                          "Poupanca" e depois um IBAN de conta corrente fazia o tipo
+                          mudar sozinho: o campo dizia uma coisa e a conta era outra. */}
+                      {allAccounts
+                        .filter(
+                          (account) =>
+                            account.account_number !== receiverAccNo &&
+                            (!accType || account.account_type === accType)
+                        )
+                        .map((account) => (
+                          <option
+                            key={account.account_number}
+                            value={account.account_number}
+                          >
+                            {account.account_number}
+                          </option>
+                        ))}
+                      {accType &&
+                        allAccounts.filter(
+                          (account) =>
+                            account.account_number !== receiverAccNo &&
+                            account.account_type === accType
+                        ).length === 0 && (
+                          <option value="" disabled>
+                            Nenhuma conta deste tipo
+                          </option>
+                        )}
                     </Form.Select>
                   </Col>
                 </Row>
@@ -328,7 +358,17 @@ const TransferScreen = () => {
                       className="mt-5"
                       variant="dark"
                       title={receiverAcc ? traduzir(receiverAcc, tiposDeConta) : "Selecione"}
-                      onSelect={(e) => setReceiverAcc(e)}
+                      onSelect={(e) => {
+                        setReceiverAcc(e);
+                        if (e && receiverAccNo) {
+                          const atual = allAccounts.find(
+                            (a) => a.account_number === receiverAccNo
+                          );
+                          if (!atual || atual.account_type !== e) {
+                            setReceiverAccNo("");
+                          }
+                        }
+                      }}
                       style={{ width: "100%" }}
                       disabled={receiverAccNo ? true : false}
                     >
@@ -368,19 +408,33 @@ const TransferScreen = () => {
                         style={{ width: "100%" }}
                       >
                         <option value="">Selecione a conta</option>
-                        {allAccounts.map((account) => {
-                          if (account.account_number !== accNo) {
-                            return (
-                              <option
-                                key={account.account_number}
-                                value={account.account_number}
-                              >
-                                {account.account_number}
-                              </option>
-                            );
-                          }
-                          return null;
-                        })}
+                        {/* Lista FILTRADA pelo tipo escolhido. Sem o filtro, escolher
+                            "Poupanca" e depois um IBAN de conta corrente fazia o tipo
+                            mudar sozinho: o campo dizia uma coisa e a conta era outra. */}
+                        {allAccounts
+                          .filter(
+                            (account) =>
+                              account.account_number !== accNo &&
+                              (!receiverAcc || account.account_type === receiverAcc)
+                          )
+                          .map((account) => (
+                            <option
+                              key={account.account_number}
+                              value={account.account_number}
+                            >
+                              {account.account_number}
+                            </option>
+                          ))}
+                        {receiverAcc &&
+                          allAccounts.filter(
+                            (account) =>
+                              account.account_number !== accNo &&
+                              account.account_type === receiverAcc
+                          ).length === 0 && (
+                            <option value="" disabled>
+                              Nenhuma conta deste tipo
+                            </option>
+                          )}
                       </Form.Select>
                     </Form.Group>
                   </Col>
