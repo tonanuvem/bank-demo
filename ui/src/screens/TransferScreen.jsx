@@ -212,6 +212,31 @@ const TransferScreen = () => {
     dispatch(getAccounts(res));
   };
 
+  // Quando o filtro por tipo deixa UMA conta so', escolhe-la e' a unica acao
+  // possivel -- pedir o clique seria pedir por pedir. No laboratorio isso e' a
+  // regra e nao a excecao: o usuario de teste nasce com uma conta de cada
+  // tipo, entao todo filtro resulta em exatamente uma.
+  useEffect(() => {
+    if (!accType || accNo) return;
+    const candidatas = allAccounts.filter(
+      (c) => c.account_type === accType && c.account_number !== receiverAccNo
+    );
+    if (candidatas.length === 1) {
+      setAccNo(candidatas[0].account_number);
+      setBalance(candidatas[0].balance);
+    }
+  }, [accType, accNo, receiverAccNo, allAccounts]);
+
+  useEffect(() => {
+    if (!receiverAcc || receiverAccNo) return;
+    const candidatas = allAccounts.filter(
+      (c) => c.account_type === receiverAcc && c.account_number !== accNo
+    );
+    if (candidatas.length === 1) {
+      setReceiverAccNo(candidatas[0].account_number);
+    }
+  }, [receiverAcc, receiverAccNo, accNo, allAccounts]);
+
   useEffect(() => {
     try {
       fetchAccounts();
@@ -256,11 +281,13 @@ const TransferScreen = () => {
               <Form>
                 <Row className="mt-4">
                   <Col md={4}>
+                    {/* Este menu NAO leva `disabled`: com a selecao automatica de conta
+                        unica, trava-lo prenderia o usuario no primeiro tipo escolhido.
+                        Trocar o tipo limpa a conta selecionada, entao e' coerente. */}
                     <DropdownButton
                       id="acc_type"
                       className="mt-5"
                       variant="dark"
-                      disabled={accNo ? true : false}
                       title={accType ? traduzir(accType, tiposDeConta) : "Selecione"}
                       onSelect={(option) => {
                         // "*required" e' o item de placeholder: escolhe-lo gravava a
@@ -353,6 +380,9 @@ const TransferScreen = () => {
 
                 <Row className="mt-3">
                   <Col md={4}>
+                    {/* Este menu NAO leva `disabled`: com a selecao automatica de conta
+                        unica, trava-lo prenderia o usuario no primeiro tipo escolhido.
+                        Trocar o tipo limpa a conta selecionada, entao e' coerente. */}
                     <DropdownButton
                       id="receiver_acc_type"
                       className="mt-5"
@@ -370,7 +400,6 @@ const TransferScreen = () => {
                         }
                       }}
                       style={{ width: "100%" }}
-                      disabled={receiverAccNo ? true : false}
                     >
                       <Dropdown.Item eventKey="">
                         Tipo de conta do destinatário
