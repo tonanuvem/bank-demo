@@ -71,12 +71,21 @@ const Header = () => {
 
   return (
     <header>
+      {/*
+        variant="dark" -- e' "variant", nao "varient". Com o nome errado o
+        react-bootstrap aplicava navbar-light sobre bg-dark, e o botao de menu
+        (a "hamburguer") ficava PRETO SOBRE PRETO: em tela estreita o cabecalho
+        aparecia so' com a logo e o menu sumia por completo.
+
+        minHeight em vez de height: com altura fixa, o menu aberto no celular
+        nao cabia dentro da barra e era cortado. Agora a barra cresce.
+      */}
       <Navbar
         bg="dark"
-        varient="dark"
+        variant="dark"
         expand="lg"
         collapseOnSelect
-        style={{ height: "10vh" }}
+        style={{ minHeight: "10vh" }}
       >
         <Container>
           <LinkContainer to="/">
@@ -96,7 +105,35 @@ const Header = () => {
               </span>
             </Navbar.Brand>
           </LinkContainer>
-          <Navbar.Toggle aria-controls="basic-navbar-nav" />
+          {/*
+              O icone vai DESENHADO aqui, e nao pela classe padrao do
+              Bootstrap. Motivo: o projeto carrega o MDB, que zera a
+              "hamburguer" de proposito --
+                .navbar-dark .navbar-toggler-icon { background-image: none; }
+              -- porque espera um icone de fonte dentro do botao. Sem isso o
+              botao existe, e' clicavel e aparece VAZIO.
+              SVG embutido nao depende de nenhuma biblioteca de icones.
+            */}
+            <Navbar.Toggle
+              aria-controls="basic-navbar-nav"
+              aria-label="Abrir menu"
+              className="menu-destaque"
+            >
+              <svg
+                width="26"
+                height="26"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+              </svg>
+            </Navbar.Toggle>
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="ms-auto">
               {userInfo ? (

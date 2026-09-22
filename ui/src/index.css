@@ -24,3 +24,31 @@ body {
 }
 
   
+/*
+ * Botao de menu (telas estreitas).
+ *
+ * A borda padrao do Bootstrap e' branca com 10% de opacidade: sobre o azul
+ * escuro do cabecalho ela praticamente desaparece, e o aluno nao descobre que
+ * ha um menu ali. Aqui ela ganha contraste de verdade.
+ */
+.navbar .navbar-toggler.menu-destaque {
+  border: 2px solid #ff3b30;
+  padding: 6px 10px;
+  border-radius: 8px;
+  opacity: 1;
+}
+.navbar .navbar-toggler.menu-destaque:focus {
+  box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.4);
+}
+/*
+ * O SVG herda esta cor via currentColor.
+ *
+ * NAO declare `display` aqui. O Bootstrap esconde o botao acima do breakpoint
+ * (.navbar-expand-lg .navbar-toggler { display: none }), e esta regra tem
+ * especificidade maior -- declarar display faria o botao aparecer TAMBEM no
+ * desktop, ao lado do menu completo. Acontecido e corrigido.
+ */
+.navbar .navbar-toggler.menu-destaque {
+  color: #fff;
+  line-height: 0;
+}
