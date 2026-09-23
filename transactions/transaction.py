@@ -94,32 +94,38 @@ class TransactionGeneric:
         account_number = request.account_number
         # logging.debug(f"Account Number: {account_number}")
 
-        # find based on account number only based on sender
-        transactions_credit = collection_transactions.find({"sender": account_number})
-        transactions_debit = collection_transactions.find({"receiver": account_number})
+        # O extrato e' sempre do ponto de vista de QUEM PEDIU. A mesma
+        # transferencia e' debito para quem enviou e credito para quem recebeu.
+        enviadas = collection_transactions.find({"sender": account_number})
+        recebidas = collection_transactions.find({"receiver": account_number})
 
         transactions_list = []
-        for t in transactions_credit:
-            temp_t = {
-                "account_number": t["receiver"],
-                "amount": t["amount"],
-                "reason": t["reason"],
-                "time_stamp": f"{t['time_stamp']}",
-                "type": "credit",
-                "transaction_id": str(t["_id"]),
-            }
-            transactions_list.append(temp_t)
 
-        for t in transactions_debit:
-            temp_t = {
+        # Saiu dinheiro desta conta -> debito, e a contraparte e' o destinatario.
+        for t in enviadas:
+            transactions_list.append({
                 "account_number": t["receiver"],
+                "amount": t["amount"],
+                "reason": t["reason"],
+                "time_stamp": f"{t['time_stamp']}",
+                "type": "debit",
+                "transaction_id": str(t["_id"]),
+            })
+
+        # Entrou dinheiro -> credito, e a contraparte e' quem enviou.
+        #
+        # Os dois lacos gravavam "credit" e mostravam t["receiver"]: o extrato
+        # marcava tudo como credito, e nas linhas de entrada exibia a PROPRIA
+        # conta na coluna da contraparte.
+        for t in recebidas:
+            transactions_list.append({
+                "account_number": t["sender"],
                 "amount": t["amount"],
                 "reason": t["reason"],
                 "time_stamp": f"{t['time_stamp']}",
                 "type": "credit",
                 "transaction_id": str(t["_id"]),
-            }
-            transactions_list.append(temp_t)
+            })
 
         return transactions_list
 

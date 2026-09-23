@@ -24,6 +24,7 @@ import {
   traduzirMensagem,
   traduzir,
   tiposDeTransacao,
+  tiposDeConta,
   formatarData,
 } from "../i18n/rotulos";
 
@@ -109,7 +110,8 @@ const TransactionScreen = () => {
                   key={account.account_number}
                   value={account.account_number}
                 >
-                  {account.account_number}
+                  {account.account_number} ·{" "}
+                  {traduzir(account.account_type, tiposDeConta)}
                 </option>
               ))}
             </Form.Select>
@@ -128,7 +130,7 @@ const TransactionScreen = () => {
               className="bg-dark text-white"
               style={{ padding: "2vh" }}
             >
-              Conta de origem
+              Contraparte
             </th>
             <th
               scope="col"
@@ -173,7 +175,7 @@ const TransactionScreen = () => {
                   <td className="text-center">
                     <MDBBadge
                       color={
-                        transaction.type === "debit" ? "success" : "danger"
+                        transaction.type === "credit" ? "success" : "danger"
                       }
                       pill
                     >
