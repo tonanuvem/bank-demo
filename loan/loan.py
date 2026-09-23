@@ -44,6 +44,14 @@ client = MongoClient(uri)
 db = client["bank"]
 collection_accounts = db["accounts"]
 collection_loans = db["loans"]
+# Mesma colecao que o servico de transacoes usa. O loan ja' escrevia direto em
+# `accounts` para creditar o saldo; gravar o lancamento e' a contrapartida
+# disso, e sem ela o dinheiro aparecia no saldo mas nao no extrato.
+collection_transactions = db["transactions"]
+
+# O extrato mostra a contraparte, e um emprestimo nao tem conta de origem.
+# Este valor vai para a coluna "Contraparte" no lugar de um IBAN.
+ORIGEM_EMPRESTIMO = "EMPRÉSTIMO"
 
 class LoanGeneric:
     def ProcessLoanRequest(self, request_data):
@@ -66,7 +74,9 @@ class LoanGeneric:
         logging.debug(f"Count whther the email and account exist or not : {count}")
         if count == 0:
             return {"approved": False, "message": "Email or Account number not found."}
-        result = self.__approveLoan(user_account, loan_amount)
+        result = self.__approveLoan(
+            user_account, loan_amount, f"Empréstimo aprovado ({loan_type})"
+        )
         logging.debug(f"Result {result}")
         message = "Loan Approved" if result else "Loan Rejected"
         
@@ -129,7 +139,7 @@ class LoanGeneric:
         # logging.debug(f"Account {r}")
         return r
 
-    def __approveLoan(self, account, amount):
+    def __approveLoan(self, account, amount, motivo):
         if amount < 1:
             return False
 
@@ -138,6 +148,19 @@ class LoanGeneric:
         collection_accounts.update_one(
             {"account_number": account["account_number"]},
             {"$set": {"balance": account["balance"]}},
+        )
+
+        # O lancamento entra com o MESMO formato de uma transferencia, porque e'
+        # o que o extrato le: find({"receiver": conta}) vira credito, e o campo
+        # `sender` aparece como contraparte.
+        collection_transactions.insert_one(
+            {
+                "sender": ORIGEM_EMPRESTIMO,
+                "receiver": account["account_number"],
+                "amount": amount,
+                "reason": motivo,
+                "time_stamp": datetime.datetime.now(),
+            }
         )
 
         return True
