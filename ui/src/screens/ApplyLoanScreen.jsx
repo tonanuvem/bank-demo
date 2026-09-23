@@ -151,6 +151,28 @@ const ApplyLoan = () => {
     dispatch(getAccounts(res));
   };
 
+  // Mesma regra da tela de transferencia: quando o tipo escolhido deixa UMA
+  // conta so', pedir o clique seria pedir por pedir. No laboratorio o usuario
+  // de teste nasce com uma conta de cada tipo, entao e' sempre esse o caso.
+  useEffect(() => {
+    if (!accType) return;
+    const candidatas = allAccounts.filter((c) => c.account_type === accType);
+
+    // Trocar o tipo invalida a conta ja' escolhida: ela sai da lista filtrada,
+    // o campo aparece vazio, mas o valor continuaria no estado e seria enviado
+    // assim mesmo.
+    if (accNo && !candidatas.some((c) => c.account_number === accNo)) {
+      setAccNo("");
+      return;
+    }
+    if (!accNo && candidatas.length === 1) {
+      const c = candidatas[0];
+      setAccNo(c.account_number);
+      setGovtId(c.government_id_type);
+      setGovtIdNo(c.govt_id_number);
+    }
+  }, [accType, accNo, allAccounts]);
+
   useEffect(() => {
     try {
       fetchAccounts();
@@ -222,7 +244,6 @@ const ApplyLoan = () => {
                   multiple={false}
                   onChange={(e) => setAccType(e.target.value)}
                   aria-label="Selecione o tipo de conta"
-                  disabled={accType ? true : false}
                 >
                   <option value="">Selecione o tipo de conta</option>
                   <option value="Savings">Poupança</option>
@@ -260,11 +281,30 @@ const ApplyLoan = () => {
                   aria-label="Selecione a conta"
                 >
                   <option value="">Selecione a conta</option>
-                  {allAccounts.map((account) => (
-                    <option value={account.account_number}>
-                      {account.account_number}
-                    </option>
-                  ))}
+                  {/* Filtrada pelo tipo: sem isso dava para escolher "Poupanca"
+                      e em seguida um IBAN de conta corrente, e o tipo mudava
+                      sozinho -- o campo dizia uma coisa e a conta era outra. */}
+                  {allAccounts
+                    .filter(
+                      (account) =>
+                        !accType || account.account_type === accType
+                    )
+                    .map((account) => (
+                      <option
+                        key={account.account_number}
+                        value={account.account_number}
+                      >
+                        {account.account_number}
+                      </option>
+                    ))}
+                  {accType &&
+                    allAccounts.filter(
+                      (account) => account.account_type === accType
+                    ).length === 0 && (
+                      <option value="" disabled>
+                        Nenhuma conta deste tipo
+                      </option>
+                    )}
                 </Form.Select>
               </Form.Group>
             </Col>
