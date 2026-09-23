@@ -158,6 +158,22 @@ class TransactionGeneric:
 
     def __doTransaction(self, sender, receiver, amount, reason=""):
         if sender["balance"] < amount:
+            # WARNING, e nao debug, por dois motivos.
+            #
+            # O tecnico: `logging.basicConfig(level=DEBUG)` no topo destes
+            # servicos e' um no-op. A auto-instrumentacao do OpenTelemetry
+            # configura o logging ANTES, o root logger ja' tem handler, e o
+            # basicConfig nao faz nada -- MEDIDO, o nivel efetivo no container
+            # e' 30 (WARNING). Todo logging.debug daqui morre em silencio.
+            #
+            # O de negocio: esta recusa devolve HTTP 200. A regra de negocio
+            # disse nao, a rota funcionou. Nenhuma metrica a enxerga, e sem
+            # esta linha ela nao existe em lugar nenhum -- o cliente nao
+            # transferiu e a observabilidade inteira ficou muda.
+            logging.warning(
+                "Insufficient Balance: conta %s tentou transferir %s com saldo %s",
+                sender["account_number"], amount, sender["balance"],
+            )
             return {"approved": False, "message": "Insufficient Balance"}
 
         sender["balance"] -= amount

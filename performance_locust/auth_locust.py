@@ -11,7 +11,9 @@ from faker import Faker
 
 fake = Faker()
 
-# Percentual das tentativas de login que usam senha errada de proposito.
+# Percentual das tentativas que falham de proposito. O mesmo nome serve
+# para os dois cenarios: aqui e' senha errada, no transaction_locust e'
+# transferencia acima do saldo.
 # E' a taxa de recusa que o painel vai mostrar: 100 recusa TODAS, 20 recusa
 # uma em cada cinco. Zero (o padrao) mantem o cenario como era antes.
 #
@@ -20,7 +22,7 @@ fake = Faker()
 # permanentemente em zero, e o unico dado vinha de alguem errando a senha na
 # tela -- um pico isolado que some em minutos. Com o painel sempre vazio, o
 # aluno nao consegue distinguir "saudavel" de "quebrado".
-FALHA_LOGIN_PCT = int(os.getenv("FALHA_LOGIN_PCT") or 0)
+FALHA_PCT = int(os.getenv("FALHA_PCT") or 0)
 
 
 class MyUser(HttpUser):
@@ -53,7 +55,7 @@ class MyUser(HttpUser):
             # comentado no userRoutes.js e o generateToken tambem), entao elas
             # respondem 200 sem login nenhum -- MEDIDO. Nao ha cookie para
             # perder e nao ha cascata.
-            errar = FALHA_LOGIN_PCT > 0 and random.randint(1, 100) <= FALHA_LOGIN_PCT
+            errar = FALHA_PCT > 0 and random.randint(1, 100) <= FALHA_PCT
             self.client.post(
                 "/auth",
                 json={

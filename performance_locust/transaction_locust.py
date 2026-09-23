@@ -4,12 +4,17 @@
 
 from locust import HttpUser, task, SequentialTaskSet, between
 from api_urls import ApiUrls
+import os
 import random
 from faker import Faker
 import time
 import json
 
 fake = Faker()
+
+# Ver auth_locust.py: mesmo nome, mesma ideia -- a fracao das operacoes que
+# falha de proposito. Zero (o padrao) mantem o cenario como era antes.
+FALHA_PCT = int(os.getenv("FALHA_PCT") or 0)
 
 
 class MyUser(HttpUser):
@@ -81,15 +86,26 @@ class MyUser(HttpUser):
 
         @task
         def internal_transfer(self):
+            # Com --falhas, esta fracao das transferencias pede mais do que a
+            # conta tem. O servico responde HTTP 200 com "Insufficient Balance":
+            # a regra de negocio disse nao, a rota funcionou.
+            #
+            # E' o contrario da recusa de login, que ao menos devolve 400.
+            # Aqui NENHUMA metrica enxerga a falha -- ela so' existe no log, e
+            # e' esse o ponto do painel "Transferencias recusadas por saldo".
+            estourar = FALHA_PCT > 0 and random.randint(1, 100) <= FALHA_PCT
             self.client.post(
                 f"/",
                 data={
                     "sender_account_number": self.account_numbers[0],
                     "receiver_account_number": self.account_numbers[1],
-                    "amount": fake.random_int(min=1, max=3),
-                    "reason": "Internal Transfer",
+                    "amount": 10_000_000 if estourar
+                              else fake.random_int(min=1, max=3),
+                    "reason": ("Saldo insuficiente (proposital)" if estourar
+                               else "Internal Transfer"),
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
+                name="/ (saldo insuficiente)" if estourar else "/",
             )
 
         @task
