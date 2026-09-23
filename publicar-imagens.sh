@@ -93,7 +93,24 @@ if [ -n "$SUJO" ] && [ "$DRY" != "true" ]; then
     read -r R; case "$R" in s|S|sim|SIM) : ;; *) echo "  cancelado."; exit 0 ;; esac
 fi
 
-if [ "$DRY" != "true" ] && ! docker system info 2>/dev/null | grep -q "Username:"; then
+# `docker info` so' mostra "Username:" quando a credencial esta em texto no
+# config.json. O Docker Desktop guarda num helper externo (credsStore), e ali
+# o campo vem VAZIO mesmo autenticado -- o aviso disparava sempre, treinando
+# quem publica a responder "s" no automatico e esvaziando a protecao.
+usuario_docker() {
+    local u store
+    u=$(docker system info 2>/dev/null | sed -n 's/^ *Username: *//p')
+    [ -n "$u" ] && { echo "$u"; return 0; }
+    store=$(sed -n 's/.*"credsStore"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+            "${DOCKER_CONFIG:-$HOME/.docker}/config.json" 2>/dev/null)
+    [ -z "$store" ] && return 1
+    command -v "docker-credential-$store" >/dev/null 2>&1 || return 1
+    "docker-credential-$store" list 2>/dev/null \
+        | sed -n 's|.*"https://index.docker.io/v1/"[[:space:]]*:[[:space:]]*"\([^"]*\)".*|\1|p'
+}
+
+USUARIO=$(usuario_docker)
+if [ "$DRY" != "true" ] && [ -z "$USUARIO" ]; then
     aviso "voce nao parece estar autenticado no Docker Hub."
     echo "       Rode antes:  docker login"
     echo
