@@ -27,11 +27,15 @@ const getATMs = asyncHandler(async (req, res) => {
     isOpen: 1,
   });
   const shuffledATMs = [...ATMs].sort(() => Math.random() - 0.5).slice(0, 4);
-  if (shuffledATMs) {
+  // `if (shuffledATMs)` era codigo morto: array vazio e' truthy em JavaScript,
+  // entao o 404 NUNCA disparava e "nenhum caixa encontrado" saia como 200 com
+  // lista vazia. Com os dados atuais nenhuma combinacao de filtro chega a
+  // zero, mas o ramo agora existe de verdade.
+  if (shuffledATMs.length) {
     res.status(200).json(shuffledATMs);
   } else {
+    console.warn("No ATMs found: nenhum caixa para o filtro pedido");
     res.status(404).json("No ATMs found");
-    throw new Error("No results found");
   }
 });
 
@@ -101,8 +105,12 @@ const getSpecificATM = asyncHandler(async (req, res) => {
       isOpen: atm.isOpen,
     });
   } else {
+    // O UNICO caso deste lab em que a falha de negocio tambem e' visivel no
+    // indicador tecnico: o cliente abre um caixa que nao existe mais e recebe
+    // 404. Serve de contraexemplo -- "falha de negocio e' invisivel" nao e'
+    // lei, e' consequencia de como cada rota foi desenhada.
+    console.warn(`ATM not found: id ${req.params.id}`);
     res.status(404).json({ message: "ATM information not found" });
-    throw new Error("ATM not found");
   }
 });
 

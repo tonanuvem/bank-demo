@@ -66,7 +66,13 @@ class AccountsGeneric:
         logging.debug(f" count: {count}")
 
         if count > 0:
-            logging.debug("Account already exist")
+            # Tambem HTTP 200, com {"response": false}. O cliente tentou abrir
+            # conta e nao conseguiu -- atrito de abertura, invisivel em
+            # qualquer metrica. Ver o comentario em loan.py sobre o nivel.
+            logging.warning(
+                "Account already exists: %s ja' tem conta do tipo %s",
+                request.email_id, request.account_type,
+            )
             return False  # CreateAccountResponse(result=False)
 
         account = {

@@ -4,10 +4,14 @@
 
 from locust import HttpUser, task, SequentialTaskSet, between
 from api_urls import ApiUrls
+import os
 import random
 from faker import Faker
 
 fake = Faker()
+
+# Ver auth_locust.py: fracao das operacoes que falha de proposito.
+FALHA_PCT = int(os.getenv("FALHA_PCT") or 0)
 
 
 class MyUser(HttpUser):
@@ -38,6 +42,17 @@ class MyUser(HttpUser):
                 data=self.user_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
+
+            # Com --falhas, tenta abrir DE NOVO a mesma conta: mesmo e-mail,
+            # mesmo tipo. O servico responde {"response": false} com HTTP 200 --
+            # atrito de abertura de conta, invisivel em qualquer metrica.
+            if FALHA_PCT > 0 and random.randint(1, 100) <= FALHA_PCT:
+                self.client.post(
+                    "/create",
+                    data=self.user_data,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    name="/create (conta duplicada)",
+                )
 
         @task
         def get_all_accounts(self):

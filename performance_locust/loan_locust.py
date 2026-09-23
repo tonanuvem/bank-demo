@@ -4,10 +4,14 @@
 
 from locust import HttpUser, task, SequentialTaskSet, between
 from api_urls import ApiUrls
+import os
 import random
 from faker import Faker
 
 fake = Faker()
+
+# Ver auth_locust.py: fracao das operacoes que falha de proposito.
+FALHA_PCT = int(os.getenv("FALHA_PCT") or 0)
 
 
 class MyUser(HttpUser):
@@ -55,7 +59,11 @@ class MyUser(HttpUser):
             self.user_data["account_number"] = self.account_number
             self.user_data["interest_rate"] = random.randint(1, 10)
             self.user_data["time_period"] = random.randint(1, 10)
-            self.user_data["loan_amount"] = random.randint(1000, 10000)
+            # A regra que ja' existe no servico: valor menor que 1 e' recusado.
+            # HTTP 200 com "Loan Rejected" -- credito negado, receita nao
+            # realizada, e nenhuma metrica enxerga.
+            recusar = FALHA_PCT > 0 and random.randint(1, 100) <= FALHA_PCT
+            self.user_data["loan_amount"] = 0 if recusar else random.randint(1000, 10000)
             self.user_data["loan_type"] = random.choice(
                 ["Base Camp", "Rover", "Potato Farming", "Ice Home", "Rocker"]
             )
@@ -63,6 +71,7 @@ class MyUser(HttpUser):
                 "/",
                 data=self.user_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
+                name="/ (credito negado)" if recusar else "/",
             )
 
         @task

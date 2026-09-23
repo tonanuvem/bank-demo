@@ -141,6 +141,15 @@ class LoanGeneric:
 
     def __approveLoan(self, account, amount, motivo):
         if amount < 1:
+            # HTTP 200 com "Loan Rejected": a regra de negocio disse nao, a
+            # rota funcionou. Credito negado e' receita nao realizada -- o
+            # evento mais caro deste demo, e sem esta linha ele nao existe em
+            # lugar nenhum. WARNING porque debug nao sai: a auto-instrumentacao
+            # do OTel configura o logging antes do basicConfig.
+            logging.warning(
+                "Loan Rejected: conta %s pediu %s",
+                account["account_number"], amount,
+            )
             return False
 
         account["balance"] += amount
