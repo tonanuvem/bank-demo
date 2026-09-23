@@ -11,8 +11,9 @@ from faker import Faker
 
 fake = Faker()
 
-# Percentual de tentativas de login que usam senha errada de proposito.
-# Zero (o padrao) mantem o cenario exatamente como era antes.
+# Percentual das tentativas de login que usam senha errada de proposito.
+# E' a taxa de recusa que o painel vai mostrar: 100 recusa TODAS, 20 recusa
+# uma em cada cinco. Zero (o padrao) mantem o cenario como era antes.
 #
 # Sem isto o cenario NUNCA recusa um login: ele registra o usuario e em
 # seguida entra com a senha correta. O SLI de recusa de login ficava
@@ -42,33 +43,25 @@ class MyUser(HttpUser):
 
         @task
         def login(self):
-            # A recusa vem ANTES do login bom, como uma tentativa a mais -- e
-            # nao trocando a senha do login que ja' existia.
+            # UMA tentativa por ciclo, certa ou errada. Assim o percentual
+            # pedido e' exatamente a taxa de recusa que aparece no painel --
+            # com uma recusa ANTES de cada login bom, o maximo alcancavel
+            # seria 50%.
             #
-            # Se o login do ciclo falhasse, o cookie nao seria emitido e
-            # /profile e /logout falhariam em seguida: o cenario reportaria
-            # erro em tres rotas quando so' uma foi recusada. E' o mesmo
-            # defeito que ja' foi corrigido em update_profile, abaixo.
-            #
-            # Como efeito colateral o formato fica realista: alguem erra a
-            # senha e acerta na tentativa seguinte.
-            if FALHA_LOGIN_PCT > 0 and random.randint(1, 100) <= FALHA_LOGIN_PCT:
-                self.client.post(
-                    "/auth",
-                    json={
-                        "email": self.user_data["email"],
-                        "password": "senha-errada-de-proposito",
-                    },
-                    name="/auth (senha errada)",
-                )
-
-            # Login
+            # Recusar nao quebra o resto do ciclo: /profile e /logout NAO sao
+            # rotas protegidas neste servico (o middleware `protect` esta
+            # comentado no userRoutes.js e o generateToken tambem), entao elas
+            # respondem 200 sem login nenhum -- MEDIDO. Nao ha cookie para
+            # perder e nao ha cascata.
+            errar = FALHA_LOGIN_PCT > 0 and random.randint(1, 100) <= FALHA_LOGIN_PCT
             self.client.post(
                 "/auth",
                 json={
                     "email": self.user_data["email"],
-                    "password": self.user_data["password"],
+                    "password": ("senha-errada-de-proposito" if errar
+                                 else self.user_data["password"]),
                 },
+                name=("/auth (senha errada)" if errar else "/auth"),
             )
 
         @task
