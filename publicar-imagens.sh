@@ -7,7 +7,7 @@
 #   bash publicar-imagens.sh --dry-run    mostra o que faria, sem enviar nada
 #
 #   REGISTRO_IMAGENS=outro bash publicar-imagens.sh     outro usuario/organizacao
-#   PLATAFORMAS=linux/amd64,linux/arm64 bash publicar-imagens.sh
+#   PLATAFORMAS=linux/arm64 bash publicar-imagens.sh    outra arquitetura
 #
 # POR QUE PUBLICAR
 # Nao e' so' velocidade. O build leva 10-20 min E depende do PyPI e do npm
@@ -30,6 +30,22 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 REGISTRO="${REGISTRO_IMAGENS:-tonanuvem}"
 TAG="${TAG_IMAGENS:-lab}"
 PLATAFORMAS="${PLATAFORMAS:-linux/amd64}"
+
+# A EC2 do laboratorio e' x86_64, por isso o padrao e' linux/amd64 -- e nao a
+# arquitetura de quem publica. Num Mac ARM, `docker compose build` sem isto
+# geraria imagens arm64 com o nome certo, e o aluno so' descobriria na aula,
+# com "exec format error" depois do pull.
+#
+# Uma lista separada por virgula NAO cabe neste fluxo: o script constroi
+# localmente e depois envia por tag, e o armazenamento local de imagens do
+# Docker guarda uma arquitetura por tag. Manifesto multi-arquitetura exige
+# `docker buildx bake --push`, que constroi e envia num passo so'.
+case "$PLATAFORMAS" in
+    *,*) echo "[ERRO] PLATAFORMAS aceita uma arquitetura por vez (recebido: $PLATAFORMAS)."
+         echo "       Multi-arquitetura precisa de 'docker buildx bake --push'."
+         exit 1 ;;
+esac
+ARQ_ESPERADA="${PLATAFORMAS##*/}"
 COMPOSE="docker-compose-network-docker-internal.yml"
 
 # nginx e locust ficam de fora: o nginx constroi em segundos, e a imagem do
@@ -43,7 +59,7 @@ for ARG in "$@"; do
     case "$ARG" in
         --so-tag)  SO_TAG=true ;;
         --dry-run) DRY=true ;;
-        -h|--help) sed -n '3,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '3,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "[ERRO] opcao desconhecida: $ARG"; exit 1 ;;
     esac
 done
@@ -93,6 +109,7 @@ if [ "$SO_TAG" != "true" ]; then
         echo "  (dry-run) docker compose -f $COMPOSE build"
     else
         REGISTRO_IMAGENS="$REGISTRO" TAG_IMAGENS="$TAG" \
+        DOCKER_DEFAULT_PLATFORM="$PLATAFORMAS" \
             docker compose -f "$COMPOSE" build $SERVICOS || { erro "build falhou"; exit 1; }
         ok "imagens construidas"
     fi
@@ -114,6 +131,14 @@ for S in $SERVICOS; do
 
     if ! docker image inspect "$ORIGEM" >/dev/null 2>&1; then
         erro "$ORIGEM nao existe localmente -- construa antes (sem --so-tag)"
+        FALHAS=$((FALHAS + 1)); continue
+    fi
+
+    # Conferir antes de enviar, e nao depois: uma imagem da arquitetura errada
+    # sobe sem reclamar e so' falha na maquina do aluno.
+    ARQ=$(docker image inspect "$ORIGEM" --format '{{.Architecture}}' 2>/dev/null)
+    if [ "$ARQ" != "$ARQ_ESPERADA" ]; then
+        erro "$S e' $ARQ, mas o esperado era $ARQ_ESPERADA -- reconstrua sem --so-tag"
         FALHAS=$((FALHAS + 1)); continue
     fi
 
