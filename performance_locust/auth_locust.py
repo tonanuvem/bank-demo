@@ -2,11 +2,24 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+import os
+import random
+
 from locust import HttpUser, task, SequentialTaskSet, between
 from api_urls import ApiUrls
 from faker import Faker
 
 fake = Faker()
+
+# Percentual de tentativas de login que usam senha errada de proposito.
+# Zero (o padrao) mantem o cenario exatamente como era antes.
+#
+# Sem isto o cenario NUNCA recusa um login: ele registra o usuario e em
+# seguida entra com a senha correta. O SLI de recusa de login ficava
+# permanentemente em zero, e o unico dado vinha de alguem errando a senha na
+# tela -- um pico isolado que some em minutos. Com o painel sempre vazio, o
+# aluno nao consegue distinguir "saudavel" de "quebrado".
+FALHA_LOGIN_PCT = int(os.getenv("FALHA_LOGIN_PCT") or 0)
 
 
 class MyUser(HttpUser):
@@ -29,6 +42,26 @@ class MyUser(HttpUser):
 
         @task
         def login(self):
+            # A recusa vem ANTES do login bom, como uma tentativa a mais -- e
+            # nao trocando a senha do login que ja' existia.
+            #
+            # Se o login do ciclo falhasse, o cookie nao seria emitido e
+            # /profile e /logout falhariam em seguida: o cenario reportaria
+            # erro em tres rotas quando so' uma foi recusada. E' o mesmo
+            # defeito que ja' foi corrigido em update_profile, abaixo.
+            #
+            # Como efeito colateral o formato fica realista: alguem erra a
+            # senha e acerta na tentativa seguinte.
+            if FALHA_LOGIN_PCT > 0 and random.randint(1, 100) <= FALHA_LOGIN_PCT:
+                self.client.post(
+                    "/auth",
+                    json={
+                        "email": self.user_data["email"],
+                        "password": "senha-errada-de-proposito",
+                    },
+                    name="/auth (senha errada)",
+                )
+
             # Login
             self.client.post(
                 "/auth",
