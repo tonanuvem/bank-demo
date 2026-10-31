@@ -22,18 +22,23 @@ class MyUser(HttpUser):
         @task
         def get_all_atms(self):
             response = self.client.post("/")
-            self.atm_data = response.json()
+            try:
+                dados = response.json()
+                self.atm_data = dados if isinstance(dados, list) else []
+            except Exception:
+                self.atm_data = []
 
         @task
         def get_atm_details(self):
-            for atm in self.atm_data:
-                self.client.get(f"/{atm['_id']}")
-
             # Com --falhas, pede um caixa que nao existe mais. Diferente das
             # outras recusas deste lab, esta devolve 404 -- e' o contraexemplo:
             # falha de negocio que o indicador TECNICO tambem enxerga.
-            if FALHA_PCT > 0 and random.randint(1, 100) <= FALHA_PCT:
+            errar = FALHA_PCT > 0 and random.randint(1, 100) <= FALHA_PCT
+            if errar:
                 self.client.get(
                     "/000000000000000000000000",
                     name="/{id} (caixa inexistente)",
                 )
+            elif getattr(self, "atm_data", None):
+                atm = random.choice(self.atm_data)
+                self.client.get(f"/{atm['_id']}", name="/{id}")

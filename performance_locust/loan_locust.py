@@ -50,10 +50,18 @@ class MyUser(HttpUser):
                 data={"email_id": self.user_data["email_id"]},
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
-            self.account_number = response.json()["response"][0]["account_number"]
+            try:
+                contas = response.json().get("response") or []
+                self.account_number = contas[0]["account_number"] if contas else None
+            except Exception:
+                self.account_number = None
 
         @task
         def apply(self):
+            if not getattr(self, "account_number", None):
+                self.on_start()
+                if not getattr(self, "account_number", None):
+                    return
             self.user_data["email"] = self.user_data["email_id"]
             self.user_data["govt_id_type"] = self.user_data["government_id_type"]
             self.user_data["account_number"] = self.account_number

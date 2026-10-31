@@ -53,9 +53,13 @@ class MyUser(HttpUser):
                 data={"email_id": usuario["email_id"]},
                 headers=formulario,
             )
-            self.contas = [
-                c["account_number"] for c in resposta.json()["response"]
-            ]
+            try:
+                self.contas = [
+                    c["account_number"]
+                    for c in (resposta.json().get("response") or [])
+                ]
+            except Exception:
+                self.contas = []
 
             if len(self.contas) >= 2:
                 self.client.post(
@@ -71,8 +75,10 @@ class MyUser(HttpUser):
 
         @task
         def extrato(self):
-            if not self.contas:
-                return
+            if not getattr(self, "contas", None):
+                self.on_start()
+                if not getattr(self, "contas", None):
+                    return
             self.client.post(
                 "/history",
                 data={"account_number": self.contas[0]},

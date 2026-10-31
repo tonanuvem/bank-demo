@@ -21,9 +21,8 @@ class MyUser(HttpUser):
     class MyUserTasks(SequentialTaskSet):
         wait_time = between(2, 3)
 
-        def on_start(self):
-            # Create fake account data
-            self.user_data = {
+        def _nova_conta(self):
+            return {
                 "name": fake.unique.name(),
                 "email_id": fake.unique.email(),
                 "account_type": random.choice(
@@ -36,6 +35,10 @@ class MyUser(HttpUser):
                 "address": fake.unique.address(),
             }
 
+        def on_start(self):
+            # Create fake account data
+            self.user_data = self._nova_conta()
+
             # Create a new account
             self.client.post(
                 "/create",
@@ -43,15 +46,25 @@ class MyUser(HttpUser):
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
 
+        @task
+        def create_account(self):
             # Com --falhas, tenta abrir DE NOVO a mesma conta: mesmo e-mail,
             # mesmo tipo. O servico responde {"response": false} com HTTP 200 --
             # atrito de abertura de conta, invisivel em qualquer metrica.
-            if FALHA_PCT > 0 and random.randint(1, 100) <= FALHA_PCT:
+            duplicar = FALHA_PCT > 0 and random.randint(1, 100) <= FALHA_PCT
+            if duplicar:
                 self.client.post(
                     "/create",
                     data=self.user_data,
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                     name="/create (conta duplicada)",
+                )
+            else:
+                self.user_data = self._nova_conta()
+                self.client.post(
+                    "/create",
+                    data=self.user_data,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
                 )
 
         @task

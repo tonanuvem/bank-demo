@@ -62,9 +62,13 @@ class MyUser(HttpUser):
                 data={"email_id": self.first_user["email_id"]},
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
-            self.account_numbers = [
-                account["account_number"] for account in response.json()["response"]
-            ]
+            try:
+                self.account_numbers = [
+                    account["account_number"]
+                    for account in (response.json().get("response") or [])
+                ]
+            except Exception:
+                self.account_numbers = []
 
             ##### SECOND USER #####
 
@@ -86,6 +90,10 @@ class MyUser(HttpUser):
 
         @task
         def internal_transfer(self):
+            if len(getattr(self, "account_numbers", [])) < 2:
+                self.on_start()
+                if len(getattr(self, "account_numbers", [])) < 2:
+                    return
             # Com --falhas, esta fracao das transferencias pede mais do que a
             # conta tem. O servico responde HTTP 200 com "Insufficient Balance":
             # a regra de negocio disse nao, a rota funcionou.
@@ -123,6 +131,8 @@ class MyUser(HttpUser):
 
         @task
         def transaction_history(self):
+            if not getattr(self, "account_numbers", None):
+                return
             self.client.post(
                 f"/history",
                 data={"account_number": self.account_numbers[0]},
