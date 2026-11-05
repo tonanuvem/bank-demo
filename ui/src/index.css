@@ -52,3 +52,17 @@ body {
   color: #fff;
   line-height: 0;
 }
+
+/*
+ * O DropdownButton do react-bootstrap recebe style={{ width: "100%" }} na
+ * <div class="dropdown"> externa, mas o <button class="dropdown-toggle">
+ * interno tem white-space: nowrap e sem limite de largura -- com textos mais
+ * longos em pt-BR ("CONTA CORRENTE", "INVESTIMENTO"), o botao transbordava da
+ * coluna e ficava por cima do campo de IBAN ao lado.
+ */
+.dropdown > .btn.dropdown-toggle {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

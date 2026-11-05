@@ -281,8 +281,7 @@ const TransferScreen = () => {
         Transferir
       </h4>
       <Row>
-        <Col md={1} />
-        <Col md={9}>
+        <Col md={12}>
           <Tabs
             defaultActiveKey="internal"
             id="uncontrolled-tab-example"
@@ -293,7 +292,7 @@ const TransferScreen = () => {
             <Tab eventKey="internal" title="Transferências internas">
               <Form>
                 <Row className="mt-4">
-                  <Col md={4}>
+                  <Col md={5}>
                     {/* Este menu NAO leva `disabled`: com a selecao automatica de conta
                         unica, trava-lo prenderia o usuario no primeiro tipo escolhido.
                         Trocar o tipo limpa a conta selecionada, entao e' coerente. */}
@@ -336,7 +335,7 @@ const TransferScreen = () => {
                       </Dropdown.Item>
                     </DropdownButton>
                   </Col>
-                  <Col md={8}>
+                  <Col md={7}>
                     <Form.Label className="mt-3">
                       Conta de origem
                     </Form.Label>
@@ -392,7 +391,7 @@ const TransferScreen = () => {
                 </Row>
 
                 <Row className="mt-3">
-                  <Col md={4}>
+                  <Col md={5}>
                     {/* Este menu NAO leva `disabled`: com a selecao automatica de conta
                         unica, trava-lo prenderia o usuario no primeiro tipo escolhido.
                         Trocar o tipo limpa a conta selecionada, entao e' coerente. */}
@@ -429,7 +428,7 @@ const TransferScreen = () => {
                       </Dropdown.Item>
                     </DropdownButton>
                   </Col>
-                  <Col md={8}>
+                  <Col md={7}>
                     <Form.Group className="mt-3" controlId="receiver_acc_no">
                       <Form.Label>Conta de destino</Form.Label>
                       <Form.Select
@@ -575,7 +574,7 @@ const TransferScreen = () => {
               {checkingAccount ? (
                 <Form>
                   <Row className="mt-4">
-                    <Col md={4}>
+                    <Col md={5}>
                       <DropdownButton
                         id="acc_type"
                         className="mt-5"
@@ -585,7 +584,7 @@ const TransferScreen = () => {
                         style={{ width: "100%" }}
                       />
                     </Col>
-                    <Col md={8}>
+                    <Col md={7}>
                       <Form.Label className="mt-3">E-mail do remetente</Form.Label>
                       <Form.Control
                         value={userInfo.email}
@@ -596,7 +595,7 @@ const TransferScreen = () => {
                   </Row>
 
                   <Row className="mt-3">
-                    <Col md={4}>
+                    <Col md={5}>
                       <DropdownButton
                         id="acc_type"
                         className="mt-5"
@@ -606,7 +605,7 @@ const TransferScreen = () => {
                         style={{ width: "100%" }}
                       />
                     </Col>
-                    <Col md={8}>
+                    <Col md={7}>
                       <Form.Group className="mt-3" controlId="receiver_acc_no">
                         <Form.Label>E-mail do destinatário</Form.Label>
                         <Form.Control
@@ -698,7 +697,6 @@ const TransferScreen = () => {
             </Tab>
           </Tabs>
         </Col>
-        <Col md={1} />
       </Row>
 
       {isLoading && <Loader />}
