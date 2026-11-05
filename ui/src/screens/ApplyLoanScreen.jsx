@@ -105,6 +105,19 @@ const ApplyLoan = () => {
         data_loan.append("time_period", loanTime);
         const res = await postLoanAPI(data_loan).unwrap();
         console.log(res);
+        if (res?.response?.approved === false) {
+          toast.error(traduzirMensagem(res.response.message), {
+            className: "toast-container-custom",
+            autoClose: 500,
+            hideProgressBar: true,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "dark",
+          });
+          return;
+        }
         dispatch(createLoan(res));
         toast.success("Parabéns! Seu empréstimo foi aprovado!", {
           className: "toast-container-custom",

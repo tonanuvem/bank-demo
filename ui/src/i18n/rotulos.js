@@ -68,6 +68,8 @@ export const mensagensApi = {
 
   // serviços Python (accounts / transactions / loan)
   "Insufficient Balance": "Saldo insuficiente",
+  "Loan Rejected": "Empréstimo recusado",
+  "Loan Approved": "Empréstimo aprovado",
   "Sender Account Not Found.": "Conta de origem não encontrada.",
   "Receiver Account Not Found.": "Conta de destino não encontrada.",
   "Email or Account number not found.": "E-mail ou número da conta não encontrado.",

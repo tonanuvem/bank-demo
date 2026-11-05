@@ -113,6 +113,19 @@ const TransferScreen = () => {
 
       const res = await postTransfer(data).unwrap();
       console.log(res);
+      if (res?.response?.approved === false) {
+        toast.error(traduzirMensagem(res.response.message), {
+          className: "toast-container-custom",
+          autoClose: 500,
+          hideProgressBar: true,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "dark",
+        });
+        return;
+      }
       dispatch(createTransfer({ ...res }));
       toast.success("Transferência realizada!", {
         className: "toast-container-custom",
