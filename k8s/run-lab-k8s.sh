@@ -19,10 +19,18 @@ NS=fiap-bank
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COM_ISTIO=1
 
+# Porta em que o Gateway do banco escuta no ingressgateway, e o nome dessa
+# porta no Service (usado para achar o NodePort). O valor pode mudar sozinho:
+# ver resolver_porta_gateway().
+PORTA_GW=80
+NOME_PORTA_SVC=http2
+FORCAR_PORTA=0
+
 for arg in "$@"; do
     case "$arg" in
       --sem-istio) COM_ISTIO=0 ;;
       --urls)      MOSTRAR_URLS_APENAS=1 ;;
+      --porta=*)   PORTA_GW="${arg#*=}"; NOME_PORTA_SVC=""; FORCAR_PORTA=1 ;;
     esac
 done
 
@@ -36,18 +44,23 @@ aviso()  { echo "  aviso: $*" >&2; }
 descobrir_entrada() {
     local porta ip host
 
-    porta=$(kubectl -n istio-system get svc istio-ingressgateway \
-            -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}' 2>/dev/null)
+    if [ -n "$NOME_PORTA_SVC" ]; then
+        porta=$(kubectl -n istio-system get svc istio-ingressgateway \
+                -o jsonpath="{.spec.ports[?(@.name==\"$NOME_PORTA_SVC\")].nodePort}" 2>/dev/null)
+    fi
     [ -z "$porta" ] && porta=$(kubectl -n istio-system get svc istio-ingressgateway \
-            -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}' 2>/dev/null)
+            -o jsonpath="{.spec.ports[?(@.port==$PORTA_GW)].nodePort}" 2>/dev/null)
 
     host=$(kubectl -n istio-system get svc istio-ingressgateway \
            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
     ip=$(kubectl -n istio-system get svc istio-ingressgateway \
          -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
 
-    if [ -n "$host" ]; then echo "http://$host"; return; fi
-    if [ -n "$ip" ];   then echo "http://$ip";   return; fi
+    # Num LoadBalancer o navegador fala com a porta do Gateway, nao com NodePort.
+    local sufixo=""
+    [ "$PORTA_GW" != 80 ] && sufixo=":$PORTA_GW"
+    if [ -n "$host" ]; then echo "http://$host$sufixo"; return; fi
+    if [ -n "$ip" ];   then echo "http://$ip$sufixo";   return; fi
 
     # NodePort: precisa do IP PUBLICO da maquina, nao do IP do no' (que e'
     # privado na VPC). O ambiente do LAB expoe isso pelo comando `ip`.
@@ -75,6 +88,82 @@ mostrar_urls() {
     echo "  Kiali            kubectl -n istio-system port-forward svc/kiali 20001:20001"
     echo "  Dynatrace        https://<SEU-AMBIENTE>.apps.dynatrace.com"
     echo
+}
+
+# ---- de quem e' a porta 80 do ingressgateway? -------------------------------
+# O ambiente do LAB instala o Bookinfo junto com o Istio, e o Gateway dele ja'
+# ocupa a porta 80 com hosts ["*"]. Quando dois Gateways declaram a mesma porta
+# e o mesmo host, o Istio MESCLA os dois num unico listener e a ordem das rotas
+# entre eles nao e' garantida -- o /login (match exato) do Bookinfo passa a
+# disputar com a tela de login do banco, e o que quebra muda a cada deploy.
+#
+# Em vez de apagar o Gateway do ambiente, o banco sai da frente: o profile demo
+# ja' expoe a porta 31400 no MESMO ingressgateway, e ela esta livre. O Bookinfo
+# continua no ar, o que importa para a demo de Istio do inicio da aula.
+resolver_porta_gateway() {
+    local dono alt
+    [ "$FORCAR_PORTA" = 1 ] && return 0
+
+    dono=$(kubectl get gateway -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{range .spec.servers[*]}{" "}{.port.number}{end}{"\n"}{end}' 2>/dev/null \
+           | grep -v "^$NS/" | awk '{for (i=2;i<=NF;i++) if ($i==80) {print $1; exit}}')
+    [ -z "$dono" ] && return 0
+
+    alt=$(kubectl -n istio-system get svc istio-ingressgateway \
+          -o jsonpath='{range .spec.ports[?(@.port==31400)]}{.name}{end}' 2>/dev/null)
+    if [ -n "$alt" ]; then
+        PORTA_GW=31400
+        NOME_PORTA_SVC="$alt"
+        aviso "a porta 80 do ingressgateway ja' e' do Gateway $dono (Bookinfo do ambiente)."
+        aviso "o banco vai usar a 31400 do mesmo gateway; o Bookinfo continua funcionando."
+    else
+        aviso "a porta 80 ja' e' do Gateway $dono e a 31400 nao esta exposta."
+        aviso "se o banco nao abrir, libere a porta 80:"
+        aviso "  kubectl -n ${dono%%/*} delete gateway ${dono##*/}"
+    fi
+}
+
+# ---- por que nao injetou o sidecar? -----------------------------------------
+# Esta e' a falha que mais custa tempo na aula, e o aviso generico ("o rotulo
+# nao e' retroativo") esta certo em um caso so'. Aqui perguntamos ao cluster.
+diagnosticar_sidecar() {
+    local webhooks bookinfo
+    echo
+    echo "  DIAGNOSTICO DA INJECAO"
+    echo "  ----------------------"
+
+    webhooks=$(kubectl get mutatingwebhookconfiguration \
+        -o jsonpath='{range .items[*]}{.metadata.name}{" => "}{.webhooks[*].namespaceSelector}{"\n"}{end}' \
+        2>/dev/null | grep -i istio)
+
+    if [ -z "$webhooks" ]; then
+        echo "  Nao existe webhook de injecao do Istio neste cluster: o istiod"
+        echo "  subiu, mas o sidecar-injector nao. Reinstale o Istio."
+        return
+    fi
+
+    echo "  webhook de injecao e o rotulo de namespace que ele exige:"
+    echo "$webhooks" | sed 's/^/    /'
+    echo
+    echo "  rotulos que o namespace $NS tem hoje:"
+    kubectl get ns "$NS" -o jsonpath='{.metadata.labels}' 2>/dev/null | sed 's/^/    /'
+    echo
+    echo "  Se o webhook exige istio.io/rev (instalacao com revisao), o rotulo"
+    echo "  istio-injection=enabled e' ignorado. Nesse caso:"
+    echo "    kubectl label ns $NS istio-injection- istio.io/rev=<revisao> --overwrite"
+    echo
+
+    bookinfo=$(kubectl -n default get pods \
+        -o jsonpath='{range .items[*]}{.spec.containers[*].name}{"\n"}{end}' 2>/dev/null \
+        | grep -c istio-proxy)
+    echo "  pods COM sidecar no namespace default (Bookinfo do ambiente): ${bookinfo:-0}"
+    if [ "${bookinfo:-0}" -gt 0 ]; then
+        echo "  => a injecao funciona no cluster, so' nao pegou aqui. Reaplique:"
+        echo "       kubectl -n $NS rollout restart deploy"
+    else
+        echo "  => a injecao nao esta funcionando em namespace nenhum. O motivo"
+        echo "     aparece no istiod:"
+        echo "       kubectl -n istio-system logs deploy/istiod --tail=50 | grep -i inject"
+    fi
 }
 
 [ "${MOSTRAR_URLS_APENAS:-0}" = 1 ] && { mostrar_urls; exit 0; }
@@ -105,7 +194,13 @@ kubectl apply -f "$BASE/app/90-carga.yaml"
 
 if [ "$COM_ISTIO" = 1 ]; then
     titulo "3/4  MALHA"
+    resolver_porta_gateway
     kubectl apply -f "$BASE/istio/00-gateway.yaml"
+    if [ "$PORTA_GW" != 80 ]; then
+        kubectl -n "$NS" patch gateway fiap-bank-gateway --type=json \
+          -p "[{\"op\":\"replace\",\"path\":\"/spec/servers/0/port/number\",\"value\":$PORTA_GW},{\"op\":\"replace\",\"path\":\"/spec/servers/0/port/name\",\"value\":\"http-fiap\"}]" \
+          >/dev/null && echo "  gateway do banco movido para a porta $PORTA_GW"
+    fi
     kubectl apply -f "$BASE/istio/10-transactions-subsets.yaml"
     kubectl apply -f "$BASE/istio/20-canary.yaml"
     rm -f "$BASE/.estado/caos.env"   # comeca sempre do zero
@@ -145,9 +240,9 @@ if [ "$COM_ISTIO" = 1 ]; then
         -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.containers[*].name}{"\n"}{end}' \
         2>/dev/null | grep -v istio-proxy | grep -v '^mongodb' | wc -l | tr -d ' ')
     if [ "${SEM_SIDECAR:-0}" -gt 0 ]; then
-        aviso "$SEM_SIDECAR pod(s) sem sidecar do Envoy."
-        aviso "o rotulo istio-injection nao e' retroativo. Corrija com:"
-        aviso "  kubectl -n $NS rollout restart deploy"
+        aviso "$SEM_SIDECAR pod(s) sem sidecar do Envoy -- sem ele nao ha malha:"
+        aviso "nada de Kiali, fault injection, retry ou canary."
+        diagnosticar_sidecar
     fi
 fi
 
@@ -169,4 +264,4 @@ cat <<EOF
      dependem do Dynatrace.
 
   4. So' entao:  bash k8s/caos.sh status
-
+EOF

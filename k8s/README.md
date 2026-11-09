@@ -58,6 +58,17 @@ para uma instituição financeira.
 | Subir a aplicação | `bash k8s/run-lab-k8s.sh` |
 | Instalar o Dynatrace | `k8s/dynatrace/README.md` |
 | **Carga** | sobe junto com o `run-lab-k8s.sh` (`k8s/app/90-carga.yaml`) — **confira que está rodando** |
+| Conferir o sidecar | `kubectl -n fiap-bank get pods` — todo pod **2/2**, menos o `mongodb` (1/1 de propósito) |
+
+> **Convivência com o Bookinfo.** O script do ambiente instala o Bookinfo e o
+> Gateway dele já ocupa a porta 80 do `istio-ingressgateway` com `hosts: ["*"]`.
+> Dois Gateways na mesma porta e host são mesclados pelo Istio num único
+> listener, e a ordem das rotas entre eles não é garantida — o `/login` do
+> Bookinfo passa a disputar com a tela de login do banco. Por isso o
+> `run-lab-k8s.sh` detecta o caso e move o banco para a porta **31400** do
+> mesmo gateway: o Bookinfo continua no ar para a demo de Istio, e o banco tem
+> listener próprio. A URL impressa no fim do script já leva a porta certa.
+> Para forçar: `bash k8s/run-lab-k8s.sh --porta=80`.
 
 > **A carga precisa rodar ANTES.** O Davis constrói linha de base: sem 30–40
 > minutos de comportamento saudável ele não tem o que chamar de anomalia, e o
