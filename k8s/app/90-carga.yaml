@@ -38,13 +38,62 @@ data:
     # Jornada minima, em laco: autentica, lista contas, pede extrato.
     # Os enderecos sao os Services do cluster -- esta carga roda DENTRO da
     # malha, entao ela tambem aparece no Kiali e no Service Map.
+    #
+    # ATENCAO AOS CAMINHOS E AO FORMATO DO CORPO. Os dois servicos nao falam
+    # a mesma lingua, e errar isso nao derruba nada: so' enche o grafico de
+    # 400 e 404, com os servicos de negocio ociosos.
+    #   customer-auth (Express)  -> JSON          em /api/users/...
+    #   dashboard (Flask)        -> FORM-URLENCODED, porque o codigo le
+    #                               request.form["..."], nao request.json
     AUTH="http://customer-auth:8000/api/users"
     DASH="http://dashboard:5000"
     EMAIL="${EMAIL:-teste@teste.com}"
     SENHA="${SENHA:-Teste@123}"
+    NOME="${NOME:-Aluno FIAP}"
     PAUSA="${PAUSA:-2}"
 
-    echo "[carga] iniciando -- pausa de ${PAUSA}s entre ciclos"
+    contas() {
+      curl -s -m 10 -X POST "$DASH/account/allaccounts" \
+           --data-urlencode "email_id=$EMAIL"
+    }
+
+    # ---- preparo: o MongoDB deste laboratorio sobe VAZIO ---------------------
+    # O volume e' emptyDir. Nao ha usuario, nao ha conta, nao ha extrato. Sem
+    # este bloco o login responde 400 ("Invalid email or password") em todo
+    # ciclo, a carga nunca passa do primeiro passo, accounts e transactions
+    # ficam sem uma requisicao sequer -- e a linha de base que o Davis grava
+    # e' feita so' de erro. Foi exatamente o que aconteceu na primeira subida.
+    preparar() {
+      # 1. usuario. Se ja' existir, o proprio servico devolve 400 e seguimos.
+      curl -s -m 10 -o /dev/null -X POST "$AUTH/" \
+           -H 'Content-Type: application/json' \
+           -d "{\"name\":\"$NOME\",\"email\":\"$EMAIL\",\"password\":\"$SENHA\"}"
+
+      # 2. conta corrente, so' se o cliente ainda nao tiver nenhuma. Como sao
+      #    3 replicas subindo juntas, as tres podem passar por aqui na
+      #    primeira vez; o accounts recusa a segunda conta do mesmo tipo para
+      #    o mesmo e-mail, entao o estrago e' no maximo uma poupanca extra.
+      if ! contas | grep -q account_number; then
+        curl -s -m 10 -o /dev/null -X POST "$DASH/account/create" \
+             --data-urlencode "email_id=$EMAIL" \
+             --data-urlencode "name=$NOME" \
+             --data-urlencode "account_type=Checking" \
+             --data-urlencode "address=Av. Paulista, 1106" \
+             --data-urlencode "govt_id_number=12345678900" \
+             --data-urlencode "government_id_type=CPF"
+      fi
+    }
+
+    descobrir_conta() {
+      CONTA=$(contas | tr ',' '\n' | grep '"account_number"' | head -1 \
+              | sed 's/.*: *"\([^"]*\)".*/\1/')
+    }
+
+    echo "[carga] preparando dados (usuario e conta)"
+    preparar
+    descobrir_conta
+    echo "[carga] conta=${CONTA:-nenhuma} -- pausa de ${PAUSA}s entre ciclos"
+
     while true; do
       # 1. login (customer-auth -> mongodb)
       curl -s -m 10 -o /dev/null -X POST "$AUTH/auth" \
@@ -52,16 +101,17 @@ data:
            -d "{\"email\":\"$EMAIL\",\"password\":\"$SENHA\"}"
 
       # 2. contas do cliente (dashboard -> accounts -> mongodb)
-      curl -s -m 10 -o /dev/null -X POST "$DASH/account/get-all-accounts" \
-           -H 'Content-Type: application/json' \
-           -d "{\"email\":\"$EMAIL\"}"
+      contas > /dev/null
 
       # 3. extrato (dashboard -> transactions -> mongodb)
       #    E' o caminho que o game day vai degradar. Sem esta chamada o
       #    servico transactions fica ocioso e nao ha o que observar.
-      curl -s -m 10 -o /dev/null -X POST "$DASH/transaction/get-transactions" \
-           -H 'Content-Type: application/json' \
-           -d "{\"email\":\"$EMAIL\"}"
+      if [ -n "$CONTA" ]; then
+        curl -s -m 10 -o /dev/null -X POST "$DASH/transaction/history" \
+             --data-urlencode "account_number=$CONTA"
+      else
+        descobrir_conta
+      fi
 
       sleep "$PAUSA"
     done

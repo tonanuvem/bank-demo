@@ -57,8 +57,35 @@ para uma instituição financeira.
 | Criar o cluster e instalar o Istio | scripts do ambiente do LAB (`environment/config/{shift,eks}/`) — **outro repositório, não alterado aqui** |
 | Subir a aplicação | `bash k8s/run-lab-k8s.sh` |
 | Instalar o Dynatrace | `k8s/dynatrace/README.md` |
+| **Republicar a imagem da UI** | **uma vez**, antes da primeira aula — ver abaixo |
 | **Carga** | sobe junto com o `run-lab-k8s.sh` (`k8s/app/90-carga.yaml`) — **confira que está rodando** |
 | Conferir o sidecar | `kubectl -n fiap-bank get pods` — todo pod **2/2**, menos o `mongodb` (1/1 de propósito) |
+
+> **A imagem da UI precisa ser republicada uma vez.** O modo de origem única
+> (`FIAP_API_BASE`) mora em dois arquivos da UI, `src/slices/apiUrls.js` e
+> `otel-rum-entrypoint.sh`, e nenhum dos dois está na imagem publicada antes
+> desta aula. Com a imagem antiga o `index.html` servido traz só
+> `window.__FIAP_API__ = { dashboard: 5000 }`, o navegador volta a chamar
+> `http://IP:8000/api/users/` — porta que não existe em Kubernetes — e o login
+> morre com `NetworkError when attempting to fetch resource`, **sem nenhum log
+> do lado do servidor**, porque a requisição nunca chega. O `run-lab-k8s.sh`
+> detecta e avisa. Para resolver, uma vez só:
+>
+> ```
+> docker compose -f docker-compose-network-docker-internal.yml build ui
+> docker push tonanuvem/fiap-bank-ui-otel:lab
+> kubectl -n fiap-bank rollout restart deploy/ui
+> ```
+>
+> A mudança é compatível com as aulas 1 e 2: sem `FIAP_API_BASE`, a UI se
+> comporta exatamente como antes (três portas no mesmo host).
+
+> **O MongoDB sobe vazio.** O volume é `emptyDir`, então não há usuário, conta
+> nem extrato — ao contrário do compose das aulas 1 e 2, onde o Mongo roda na
+> máquina e os dados persistem. Quem cria o `teste@teste.com` e a conta
+> corrente é o próprio `carga-fundo`, no arranque. Se o login falhar com
+> *"Invalid email or password"*, veja se a carga subiu:
+> `kubectl -n fiap-bank logs -l app=carga-fundo --tail=20`.
 
 > **Convivência com o Bookinfo.** O script do ambiente instala o Bookinfo e o
 > Gateway dele já ocupa a porta 80 do `istio-ingressgateway` com `hosts: ["*"]`.

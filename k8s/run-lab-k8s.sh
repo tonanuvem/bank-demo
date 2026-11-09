@@ -232,6 +232,22 @@ if [ "$COM_ISTIO" = 1 ]; then
         kubectl -n "$NS" set env deploy/ui FIAP_API_BASE="$ENTRADA" >/dev/null
         kubectl -n "$NS" rollout status deploy/ui --timeout=120s >/dev/null 2>&1
         echo "  ok    ui apontada para $ENTRADA"
+
+        # A variavel so' tem efeito se a IMAGEM da UI for recente. O
+        # entrypoint antigo injeta apenas { dashboard: 5000 } e o bundle
+        # antigo nem le "base": o navegador volta a chamar a porta 8000 do
+        # host, que nao existe em Kubernetes, e o login falha com
+        # "NetworkError when attempting to fetch resource" -- sem log nenhum
+        # do lado do servidor, porque a requisicao nao chega. Verificamos
+        # servindo o proprio index.html.
+        if ! curl -s -m 15 "$ENTRADA/" 2>/dev/null | grep -q 'base:'; then
+            aviso "a imagem da UI e' anterior ao modo de origem unica."
+            aviso "o login vai falhar com NetworkError. Reconstrua e publique:"
+            aviso "  docker compose -f docker-compose-network-docker-internal.yml build ui"
+            aviso "  docker push $(kubectl -n "$NS" get deploy ui \
+                    -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null)"
+            aviso "  kubectl -n $NS rollout restart deploy/ui"
+        fi
     else
         aviso "nao descobri a URL de entrada -- a UI pode nao conseguir chamar as APIs."
         aviso "corrija com: kubectl -n $NS set env deploy/ui FIAP_API_BASE=http://IP:PORTA"
