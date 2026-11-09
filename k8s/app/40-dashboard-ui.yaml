@@ -95,9 +95,26 @@ spec:
             # RUM: preencha para ligar o Real User Monitoring do Dynatrace
             # (injecao automatica pelo OneAgent tambem funciona -- ver roteiro).
             - { name: FARO_COLLECTOR_URL, value: "" }
+          # O pod demora para atender: o vite transpila os modulos sob demanda
+          # na primeira requisicao. Sem readiness probe o Service manda
+          # trafego para um pod que ainda nao escuta, e o Envoy responde
+          # "no healthy upstream" -- que parece falha de malha e e' so' espera.
+          # Com a probe, o rollout do script tambem passa a esperar de verdade.
+          readinessProbe:
+            httpGet: { path: /, port: 3000 }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 36          # ate' 3 min para o primeiro boot
+          # ATENCAO AOS LIMITES. Este container nao serve arquivos estaticos:
+          # ele roda o VITE EM MODO DEV, que e' Node mais esbuild e e' o
+          # processo mais pesado do laboratorio. Com os 256Mi que estavam aqui
+          # o kernel matava o processo por OOM assim que o aluno navegava umas
+          # poucas telas, o pod reiniciava e a UI respondia 503 em laco --
+          # sem erro na aplicacao, porque quem mata e' o cgroup.
           resources:
-            requests: { memory: 64Mi,  cpu: 50m }
-            limits:   { memory: 256Mi, cpu: 300m }
+            requests: { memory: 256Mi, cpu: 200m }
+            limits:   { memory: 1Gi,   cpu: 1000m }
 ---
 apiVersion: v1
 kind: Service
