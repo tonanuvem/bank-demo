@@ -149,8 +149,12 @@ ambiente observável? E o que isso esconde?
 
 Kiali e Dynatrace, lado a lado, no mesmo sistema.
 
+O `run-lab-k8s.sh` imprime a URL do Kiali no mesmo formato do ambiente
+(`http://IP:NodePort`), que é o que o aluno cola no navegador. Para reimprimir
+sem subir nada de novo:
+
 ```bash
-kubectl -n istio-system port-forward svc/kiali 20001:20001
+bash k8s/run-lab-k8s.sh --urls
 ```
 
 > `[PRINT: Kiali → Traffic Graph do namespace fiap-bank]`

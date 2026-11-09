@@ -38,6 +38,16 @@ titulo() { echo; echo "  $*"; echo "  ${*//?/-}"; }
 erro()   { echo "  ERRO: $*" >&2; exit 1; }
 aviso()  { echo "  aviso: $*" >&2; }
 
+# IP PUBLICO da maquina. O ambiente do LAB expoe isso pelo comando `ip` no
+# home; fora dele, cai para o ExternalIP do primeiro no'.
+ip_publico() {
+    local publico
+    publico=$( (cd ~ && ./ip 2>/dev/null) | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1)
+    [ -z "$publico" ] && publico=$(kubectl get nodes \
+        -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}' 2>/dev/null)
+    echo "$publico"
+}
+
 # ---- descobre por onde o navegador do aluno entra ---------------------------
 # Tres caminhos, do mais provavel ao menos, porque isso muda entre o cluster
 # kubeadm na EC2 (NodePort + IP publico) e o EKS (LoadBalancer).
@@ -63,14 +73,28 @@ descobrir_entrada() {
     if [ -n "$ip" ];   then echo "http://$ip$sufixo";   return; fi
 
     # NodePort: precisa do IP PUBLICO da maquina, nao do IP do no' (que e'
-    # privado na VPC). O ambiente do LAB expoe isso pelo comando `ip`.
-    local publico
-    publico=$( (cd ~ && ./ip 2>/dev/null) | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1)
-    [ -z "$publico" ] && publico=$(kubectl get nodes \
-        -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}' 2>/dev/null)
+    # privado na VPC).
+    local publico; publico=$(ip_publico)
     [ -z "$publico" ] && publico="IP_EXTERNO"
 
     [ -n "$porta" ] && echo "http://$publico:$porta" || echo ""
+}
+
+# URL de um Service exposto por NodePort, no mesmo formato que o
+# k8s_config_istio_nodeport.sh do ambiente imprime -- http://IP:PORTA, para o
+# aluno colar no navegador. O port-forward nao serve aqui: ele vive enquanto o
+# terminal estiver aberto e nao atende quem acessa de fora.
+url_nodeport() {   # url_nodeport <namespace> <service> [nome-da-porta]
+    local porta ip
+    if [ -n "${3:-}" ]; then
+        porta=$(kubectl -n "$1" get svc "$2" \
+                -o jsonpath="{.spec.ports[?(@.name==\"$3\")].nodePort}" 2>/dev/null)
+    fi
+    [ -z "$porta" ] && porta=$(kubectl -n "$1" get svc "$2" \
+            -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null)
+    [ -z "$porta" ] && return 1
+    ip=$(ip_publico); [ -z "$ip" ] && return 1
+    echo "http://$ip:$porta"
 }
 
 mostrar_urls() {
@@ -85,7 +109,19 @@ mostrar_urls() {
         echo "  login            teste@teste.com / Teste@123"
     fi
     echo
-    echo "  Kiali            kubectl -n istio-system port-forward svc/kiali 20001:20001"
+    local kiali grafana bookinfo
+    kiali=$(url_nodeport istio-system kiali http)
+    grafana=$(url_nodeport istio-system grafana service)
+    bookinfo=$(url_nodeport istio-system istio-ingressgateway http2)
+
+    if [ -n "$kiali" ]; then
+        echo "  Kiali            $kiali"
+    else
+        aviso "o Service kiali nao esta como NodePort. Exponha com:"
+        aviso "  kubectl -n istio-system patch svc kiali -p '{\"spec\":{\"type\":\"NodePort\"}}'"
+    fi
+    [ -n "$grafana" ]  && echo "  Grafana (Istio)  $grafana"
+    [ -n "$bookinfo" ] && echo "  Bookinfo         $bookinfo/productpage"
     echo "  Dynatrace        https://<SEU-AMBIENTE>.apps.dynatrace.com"
     echo
 }
