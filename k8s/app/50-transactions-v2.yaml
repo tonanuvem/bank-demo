@@ -42,7 +42,7 @@ spec:
           image: tonanuvem/fiap-bank-transactions-otel:lab
           imagePullPolicy: Always
           ports:
-            - { name: grpc-trans, containerPort: 50052 }
+            - { name: http-trans, containerPort: 50052 }
           envFrom:
             - configMapRef: { name: fiap-bank-config }
           env:

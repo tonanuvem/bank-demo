@@ -104,7 +104,11 @@ resolver_porta_gateway() {
     local dono alt
     [ "$FORCAR_PORTA" = 1 ] && return 0
 
-    dono=$(kubectl get gateways.networking.istio.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{range .spec.servers[*]}{" "}{.port.number}{end}{"\n"}{end}' 2>/dev/null \
+    # Sem range aninhado: kubectl aceita a sintaxe, nao devolve nada e o
+    # 2>/dev/null engole o aviso -- o conflito passava batido e o banco
+    # continuava disputando a porta 80 com o Bookinfo.
+    dono=$(kubectl get gateways.networking.istio.io -A \
+           -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{" "}{.spec.servers[*].port.number}{"\n"}{end}' 2>/dev/null \
            | grep -v "^$NS/" | awk '{for (i=2;i<=NF;i++) if ($i==80) {print $1; exit}}')
     [ -z "$dono" ] && return 0
 
@@ -245,7 +249,13 @@ if [ "$COM_ISTIO" = 1 ]; then
         # "NetworkError when attempting to fetch resource" -- sem log nenhum
         # do lado do servidor, porque a requisicao nao chega. Verificamos
         # servindo o proprio index.html.
-        if ! curl -s -m 15 "$ENTRADA/" 2>/dev/null | grep -q 'base:'; then
+        # Lido DENTRO do pod, nao pela URL publica: uma EC2 nao alcanca o
+        # proprio IP publico, entao o curl daqui falhava sempre e o aviso
+        # aparecia mesmo com a imagem nova.
+        INDEX_UI=$(kubectl -n "$NS" exec deploy/ui -- cat /bankapp/index.html 2>/dev/null)
+        if [ -z "$INDEX_UI" ]; then
+            aviso "nao consegui ler o index.html do pod da ui para conferir a imagem."
+        elif ! printf '%s' "$INDEX_UI" | grep -q 'base:'; then
             aviso "a imagem da UI e' anterior ao modo de origem unica."
             aviso "o login vai falhar com NetworkError. Reconstrua e publique:"
             aviso "  docker compose -f docker-compose-network-docker-internal.yml build ui"

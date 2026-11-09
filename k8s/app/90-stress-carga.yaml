@@ -89,29 +89,50 @@ data:
               | sed 's/.*: *"\([^"]*\)".*/\1/')
     }
 
+    # Toda chamada passa por aqui, e o que nao for 2xx vai para o log. Sem
+    # isso a carga falha em silencio: o grafico fica vermelho e ninguem sabe
+    # qual requisicao, com qual corpo, deu qual codigo.
+    CODIGO=""
+    chamar() {
+      rotulo="$1"; shift
+      CODIGO=$(curl -s -o /dev/null -m 10 -w '%{http_code}' "$@")
+      case "$CODIGO" in
+        2*) ;;
+        *) echo "[carga] $rotulo -> HTTP $CODIGO" ;;
+      esac
+    }
+
     echo "[carga] preparando dados (usuario e conta)"
     preparar
     descobrir_conta
     echo "[carga] conta=${CONTA:-nenhuma} -- pausa de ${PAUSA}s entre ciclos"
 
+    CICLO=0
     while true; do
       # 1. login (customer-auth -> mongodb)
-      curl -s -m 10 -o /dev/null -X POST "$AUTH/auth" \
-           -H 'Content-Type: application/json' \
-           -d "{\"email\":\"$EMAIL\",\"password\":\"$SENHA\"}"
+      chamar login -X POST "$AUTH/auth" \
+             -H 'Content-Type: application/json' \
+             -d "{\"email\":\"$EMAIL\",\"password\":\"$SENHA\"}"
 
       # 2. contas do cliente (dashboard -> accounts -> mongodb)
-      contas > /dev/null
+      chamar contas -X POST "$DASH/account/allaccounts" \
+             --data-urlencode "email_id=$EMAIL"
 
       # 3. extrato (dashboard -> transactions -> mongodb)
       #    E' o caminho que o game day vai degradar. Sem esta chamada o
       #    servico transactions fica ocioso e nao ha o que observar.
       if [ -n "$CONTA" ]; then
-        curl -s -m 10 -o /dev/null -X POST "$DASH/transaction/history" \
-             --data-urlencode "account_number=$CONTA"
+        chamar extrato -X POST "$DASH/transaction/history" \
+               --data-urlencode "account_number=$CONTA"
       else
+        # Sem conta nao ha extrato. Tenta de novo: a conta pode ter sido
+        # criada depois, por outra replica ou pela aula.
         descobrir_conta
+        [ -n "$CONTA" ] && echo "[carga] conta encontrada: $CONTA"
       fi
+
+      CICLO=$((CICLO + 1))
+      [ $((CICLO % 60)) -eq 0 ] && echo "[carga] $CICLO ciclos, conta=${CONTA:-nenhuma}"
 
       sleep "$PAUSA"
     done

@@ -9,16 +9,23 @@
 #   transactions  50052
 #   loan          50053
 #
-# O PREFIXO do nome da porta e' o que diz ao Istio qual protocolo esperar, e
-# aqui ele precisa ser "grpc-", nao "http-". Estes tres servicos falam gRPC
-# (que e' HTTP/2): com o nome "http-" o Envoy monta o cluster de saida em
-# HTTP/1.1 e a chamada do dashboard morre com UNAVAILABLE -- sem sidecar
-# ninguem percebe, porque o Envoy nem esta no caminho.
-# Com "grpc-" o Istio trata como camada 7 e entrega o laboratorio inteiro:
-# metrica por rota, fault injection, retry e canary por peso.
+# O PREFIXO do nome da porta diz ao Istio qual protocolo esperar, e aqui ele
+# e' "http-". Parece errado: 50051/50052/50053 sao portas de gRPC no projeto
+# original. Mas quem decide e' a variavel SERVICE_PROTOCOL, e este laboratorio
+# a define como "http" (ver 00-namespace.yaml) desde as aulas 1 e 2 -- entao o
+# accounts.py roda app.run() do Flask, HTTP/1.1, e nao o servidor gRPC.
+#
+# Nomear de "grpc-" faz o Envoy abrir HTTP/2 contra um servidor HTTP/1.1. O
+# resultado medido no cluster foi 502 em TODA chamada ao accounts, com o
+# dashboard devolvendo 500 e nenhum trafego chegando ao transactions. Sem
+# sidecar o erro nao existe, porque o Envoy nao esta no caminho: e' uma falha
+# que so' aparece depois que a malha entra.
+#
+# Se algum dia o laboratorio passar a usar SERVICE_PROTOCOL=grpc, estes tres
+# nomes mudam junto, senao a metrica sai como HTTP generico.
 #
 # O nome tambem tem limite de 15 caracteres (IANA_SVC_NAME). Por isso
-# "grpc-trans", e nao "grpc-transactions": o kubectl recusa o Deployment com
+# "http-trans", e nao "http-transactions": o kubectl recusa o Deployment com
 #   must be no more than 15 characters
 # e os pods simplesmente nao sao criados.
 #
@@ -44,7 +51,7 @@ spec:
           image: tonanuvem/fiap-bank-accounts-otel:lab
           imagePullPolicy: Always
           ports:
-            - { name: grpc-accounts, containerPort: 50051 }
+            - { name: http-accounts, containerPort: 50051 }
           envFrom:
             - configMapRef: { name: fiap-bank-config }
           env:
@@ -62,7 +69,7 @@ metadata:
 spec:
   selector: { app: accounts }
   ports:
-    - { name: grpc-accounts, port: 50051, targetPort: 50051 }
+    - { name: http-accounts, port: 50051, targetPort: 50051 }
 ---
 # ----------------------------------------------------------------- transactions
 # O servico central do laboratorio: e' nele que a aula 2 injetou lentidao e
@@ -88,7 +95,7 @@ spec:
           image: tonanuvem/fiap-bank-transactions-otel:lab
           imagePullPolicy: Always
           ports:
-            - { name: grpc-trans, containerPort: 50052 }
+            - { name: http-trans, containerPort: 50052 }
           envFrom:
             - configMapRef: { name: fiap-bank-config }
           env:
@@ -115,7 +122,7 @@ spec:
   # funcionar e o VirtualService passa a rotear 100% para um lado so'.
   selector: { app: transactions }
   ports:
-    - { name: grpc-trans, port: 50052, targetPort: 50052 }
+    - { name: http-trans, port: 50052, targetPort: 50052 }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -136,7 +143,7 @@ spec:
           image: tonanuvem/fiap-bank-loan-otel:lab
           imagePullPolicy: Always
           ports:
-            - { name: grpc-loan, containerPort: 50053 }
+            - { name: http-loan, containerPort: 50053 }
           envFrom:
             - configMapRef: { name: fiap-bank-config }
           env:
@@ -154,4 +161,4 @@ metadata:
 spec:
   selector: { app: loan }
   ports:
-    - { name: grpc-loan, port: 50053, targetPort: 50053 }
+    - { name: http-loan, port: 50053, targetPort: 50053 }
