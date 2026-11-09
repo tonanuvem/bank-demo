@@ -104,7 +104,7 @@ resolver_porta_gateway() {
     local dono alt
     [ "$FORCAR_PORTA" = 1 ] && return 0
 
-    dono=$(kubectl get gateway -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{range .spec.servers[*]}{" "}{.port.number}{end}{"\n"}{end}' 2>/dev/null \
+    dono=$(kubectl get gateways.networking.istio.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{range .spec.servers[*]}{" "}{.port.number}{end}{"\n"}{end}' 2>/dev/null \
            | grep -v "^$NS/" | awk '{for (i=2;i<=NF;i++) if ($i==80) {print $1; exit}}')
     [ -z "$dono" ] && return 0
 
@@ -202,8 +202,9 @@ if [ "$COM_ISTIO" = 1 ]; then
     if [ "$PORTA_GW" != 80 ]; then
         kubectl -n "$NS" patch gateway fiap-bank-gateway --type=json \
           -p "[{\"op\":\"replace\",\"path\":\"/spec/servers/0/port/number\",\"value\":$PORTA_GW},{\"op\":\"replace\",\"path\":\"/spec/servers/0/port/name\",\"value\":\"http-fiap\"}]" \
-          >/dev/null && echo "  gateway do banco movido para a porta $PORTA_GW"
+          >/dev/null
     fi
+    echo "  gateway do banco na porta $PORTA_GW do istio-ingressgateway"
     kubectl apply -f "$BASE/istio/10-transactions-subsets.yaml"
     kubectl apply -f "$BASE/istio/20-canary.yaml"
     rm -f "$BASE/.estado/caos.env"   # comeca sempre do zero
@@ -257,21 +258,24 @@ if [ "$COM_ISTIO" = 1 ]; then
 fi
 
 mostrar_urls
-cat <<EOF
-  PROXIMOS PASSOS
-
-  1. A carga ja' esta rodando (deployment carga-fundo, 3 replicas).
-     Confira que ela esta gerando trafego de verdade:
-
-       kubectl -n $NS logs -l app=carga-fundo --tail=5
-       kubectl -n $NS get pods
-
-  2. Instale o Dynatrace:  cat k8s/dynatrace/README.md
-
-  3. DEIXE RODANDO 30-40 MINUTOS antes do game day. E' o tempo de que o
-     Davis precisa para saber como e' o normal deste sistema. Use esse
-     intervalo para os blocos 1 e 2 do roteiro (cluster e malha), que nao
-     dependem do Dynatrace.
-
-  4. So' entao:  bash k8s/caos.sh status
-EOF
+# ---- proximos passos -------------------------------------------------------
+# Comentado de proposito: o roteiro ja' esta no k8s/README.md e o bloco so'
+# empurrava a URL do lab para fora da tela. Para voltar a imprimir, descomente.
+# cat <<EOF
+#   PROXIMOS PASSOS
+#
+#   1. A carga ja' esta rodando (deployment carga-fundo, 3 replicas).
+#      Confira que ela esta gerando trafego de verdade:
+#
+#        kubectl -n $NS logs -l app=carga-fundo --tail=5
+#        kubectl -n $NS get pods
+#
+#   2. Instale o Dynatrace:  cat k8s/dynatrace/README.md
+#
+#   3. DEIXE RODANDO 30-40 MINUTOS antes do game day. E' o tempo de que o
+#      Davis precisa para saber como e' o normal deste sistema. Use esse
+#      intervalo para os blocos 1 e 2 do roteiro (cluster e malha), que nao
+#      dependem do Dynatrace.
+#
+#   4. So' entao:  bash k8s/caos.sh status
+# EOF
