@@ -1,13 +1,35 @@
 # =============================================================================
 # FIAP OTEL BANK no Kubernetes -- namespace e configuracao comum
 # =============================================================================
-# O rotulo istio-injection=enabled e' o que faz o Istio injetar o sidecar
-# Envoy em TODO pod criado neste namespace. Sem ele os pods sobem, a aplicacao
-# funciona e nada aparece no Kiali -- a falha mais comum deste laboratorio.
+# O rotulo abaixo e' o que faz o Istio injetar o sidecar Envoy em TODO pod
+# criado neste namespace. Sem ele os pods sobem, a aplicacao funciona e nada
+# aparece no Kiali -- a falha mais comum deste laboratorio.
+#
+# ATENCAO ao rotulo certo: existem DOIS, e qual funciona depende de como o
+# Istio foi instalado. Confira no webhook, nao na memoria:
+#
+#   kubectl get mutatingwebhookconfiguration \
+#     -o custom-columns=NOME:.metadata.name,SELETOR:.webhooks[0].namespaceSelector \
+#     | grep -i istio
+#
+# a) Instalacao classica -> entrada namespace.sidecar-injector.istio.io, que
+#    exige  istio-injection: enabled  (o rotulo de todo tutorial).
+#
+# b) Instalacao com revision tag -> entrada rev.namespace.sidecar-injector,
+#    que exige  istio.io/rev: <tag>  E  NENHUM rotulo istio-injection.
+#    Nesse modo o webhook istio-sidecar-injector aparece desativado
+#    (matchLabels: istio.io/deactivated: never-match) e quem decide e' o
+#    istio-revision-tag-default. Foi o caso do ambiente do LAB: com
+#    istio-injection=enabled nenhum pod recebeu sidecar, os pods subiram 1/1
+#    e nao houve um unico erro -- o silencio e' o sintoma.
+#
+# Usamos (b) com a tag "default", que funciona nos dois mundos: na instalacao
+# classica a entrada rev.namespace tambem existe e tambem aceita
+# istio.io/rev=default. Se o seu Istio usar outra revisao, troque o valor.
 #
 # Confira depois do deploy:  kubectl -n fiap-bank get pods
 #   READY 2/2  = aplicacao + sidecar  (correto)
-#   READY 1/1  = sem sidecar          (o rotulo nao estava la' no momento do deploy)
+#   READY 1/1  = sem sidecar
 # O rotulo nao e' retroativo: se esquecer, `kubectl -n fiap-bank rollout restart deploy`.
 # =============================================================================
 apiVersion: v1
@@ -15,7 +37,8 @@ kind: Namespace
 metadata:
   name: fiap-bank
   labels:
-    istio-injection: enabled
+    # Leia o comentario do topo antes de trocar este rotulo.
+    istio.io/rev: default
     # Lido pelo metadataEnrichment do Dynatrace: vira atributo em todo span,
     # log e metrica deste namespace, e e' o que permite filtrar por
     # "aplicacao" em vez de por "pod" nas telas do LAB.

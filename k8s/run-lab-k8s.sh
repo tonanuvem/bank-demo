@@ -147,6 +147,9 @@ diagnosticar_sidecar() {
     echo "  rotulos que o namespace $NS tem hoje:"
     kubectl get ns "$NS" -o jsonpath='{.metadata.labels}' 2>/dev/null | sed 's/^/    /'
     echo
+    echo "  e os do namespace default, onde o ambiente poe o Bookinfo:"
+    kubectl get ns default -o jsonpath='{.metadata.labels}' 2>/dev/null | sed 's/^/    /'
+    echo
     echo "  Se o webhook exige istio.io/rev (instalacao com revisao), o rotulo"
     echo "  istio-injection=enabled e' ignorado. Nesse caso:"
     echo "    kubectl label ns $NS istio-injection- istio.io/rev=<revisao> --overwrite"
