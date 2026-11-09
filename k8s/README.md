@@ -85,9 +85,18 @@ kubectl get nodes
 kubectl -n fiap-bank get pods
 ```
 
-Todo pod deve estar **2/2** — aplicação + sidecar Envoy. `1/1` significa que o
-rótulo `istio-injection` não estava lá no momento do deploy; o rótulo não é
-retroativo.
+Todo pod deve estar **2/2** — aplicação + sidecar Envoy — menos o `mongodb`,
+que fica `1/1` de propósito. `1/1` nos outros significa que o rótulo
+`istio-injection` não estava lá no momento do deploy; o rótulo não é retroativo.
+
+> **Confira pelo READY, não pela lista de containers.** Com Istio recente em
+> Kubernetes 1.29+ a injeção usa **sidecar nativo**: o Envoy entra como
+> `initContainer` com `restartPolicy: Always` e **não aparece em
+> `.spec.containers`**. Um `jsonpath` sobre `containers` mostra um pod sem
+> Envoy que está perfeitamente injetado — e manda você caçar um problema que
+> não existe. O `READY` conta o sidecar nativo; o `jsonpath` sobre
+> `containers`, não. Vale um minuto de aula: é observabilidade do próprio
+> instrumento.
 
 > `[PRINT: kubectl -n fiap-bank get pods com a coluna READY em 2/2]`
 

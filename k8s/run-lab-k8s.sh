@@ -156,8 +156,8 @@ diagnosticar_sidecar() {
     echo
 
     bookinfo=$(kubectl -n default get pods \
-        -o jsonpath='{range .items[*]}{.spec.containers[*].name}{"\n"}{end}' 2>/dev/null \
-        | grep -c istio-proxy)
+        -o jsonpath='{range .items[*]}{.spec.initContainers[*].name}{" "}{.spec.containers[*].name}{"\n"}{end}' \
+        2>/dev/null | grep -c istio-proxy)
     echo "  pods COM sidecar no namespace default (Bookinfo do ambiente): ${bookinfo:-0}"
     if [ "${bookinfo:-0}" -gt 0 ]; then
         echo "  => a injecao funciona no cluster, so' nao pegou aqui. Reaplique:"
@@ -239,12 +239,19 @@ fi
 
 # ---- conferencia do sidecar -------------------------------------------------
 if [ "$COM_ISTIO" = 1 ]; then
+    # ATENCAO: o istio-proxy pode estar em DOIS lugares. Desde o Istio 1.2x
+    # com Kubernetes 1.29+, a injecao usa SIDECAR NATIVO: o Envoy entra como
+    # initContainer com restartPolicy: Always, e NAO aparece em
+    # .spec.containers. Olhar so' containers faz toda a malha parecer ausente
+    # -- o pod esta 2/2, com Envoy, e o script acusa "sem sidecar".
     SEM_SIDECAR=$(kubectl -n "$NS" get pods \
-        -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.containers[*].name}{"\n"}{end}' \
+        -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.initContainers[*].name}{" "}{.spec.containers[*].name}{"\n"}{end}' \
         2>/dev/null | grep -v istio-proxy | grep -v '^mongodb' | wc -l | tr -d ' ')
     if [ "${SEM_SIDECAR:-0}" -gt 0 ]; then
         aviso "$SEM_SIDECAR pod(s) sem sidecar do Envoy -- sem ele nao ha malha:"
         aviso "nada de Kiali, fault injection, retry ou canary."
+        aviso "confirme pela coluna READY (2/2 = com Envoy):"
+        aviso "  kubectl -n $NS get pods"
         diagnosticar_sidecar
     fi
 fi

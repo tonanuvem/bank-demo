@@ -1,44 +1,46 @@
 # =============================================================================
 # FIAP OTEL BANK no Kubernetes -- namespace e configuracao comum
 # =============================================================================
-# O rotulo abaixo e' o que faz o Istio injetar o sidecar Envoy em TODO pod
-# criado neste namespace. Sem ele os pods sobem, a aplicacao funciona e nada
-# aparece no Kiali -- a falha mais comum deste laboratorio.
+# O rotulo istio-injection=enabled e' o que faz o Istio injetar o sidecar
+# Envoy em TODO pod criado neste namespace. Sem ele os pods sobem, a aplicacao
+# funciona e nada aparece no Kiali.
 #
-# ATENCAO ao rotulo certo: existem DOIS, e qual funciona depende de como o
-# Istio foi instalado. Confira no webhook, nao na memoria:
+# O rotulo nao e' retroativo: se esquecer, `kubectl -n fiap-bank rollout
+# restart deploy`.
 #
-#   kubectl get mutatingwebhookconfiguration \
-#     -o custom-columns=NOME:.metadata.name,SELETOR:.webhooks[0].namespaceSelector \
-#     | grep -i istio
+# ONDE O ENVOY APARECE -- a pegadinha deste laboratorio.
+# Desde o Istio 1.2x rodando em Kubernetes 1.29+, a injecao usa SIDECAR
+# NATIVO: o Envoy entra como initContainer com restartPolicy: Always, e NAO
+# aparece em .spec.containers. Quem confere a malha com
 #
-# a) Instalacao classica -> entrada namespace.sidecar-injector.istio.io, que
-#    exige  istio-injection: enabled  (o rotulo de todo tutorial).
+#   kubectl get pods -o jsonpath='{.items[*].spec.containers[*].name}'
 #
-# b) Instalacao com revision tag -> entrada rev.namespace.sidecar-injector,
-#    que exige  istio.io/rev: <tag>  E  NENHUM rotulo istio-injection.
-#    Nesse modo o webhook istio-sidecar-injector aparece desativado
-#    (matchLabels: istio.io/deactivated: never-match) e quem decide e' o
-#    istio-revision-tag-default. Foi o caso do ambiente do LAB: com
-#    istio-injection=enabled nenhum pod recebeu sidecar, os pods subiram 1/1
-#    e nao houve um unico erro -- o silencio e' o sintoma.
+# ve um pod sem Envoy que esta perfeitamente injetado. Confira pelo READY, que
+# conta o sidecar nativo:
 #
-# Usamos (b) com a tag "default", que funciona nos dois mundos: na instalacao
-# classica a entrada rev.namespace tambem existe e tambem aceita
-# istio.io/rev=default. Se o seu Istio usar outra revisao, troque o valor.
+#   kubectl -n fiap-bank get pods
+#     READY 2/2  = aplicacao + Envoy   (correto)
+#     READY 1/1  = sem Envoy
 #
-# Confira depois do deploy:  kubectl -n fiap-bank get pods
-#   READY 2/2  = aplicacao + sidecar  (correto)
-#   READY 1/1  = sem sidecar
-# O rotulo nao e' retroativo: se esquecer, `kubectl -n fiap-bank rollout restart deploy`.
+# E se realmente faltar sidecar, o rotulo pode nao ser este. Pergunte ao
+# webhook qual ele exige, em vez de confiar na memoria:
+#
+#   kubectl get mutatingwebhookconfiguration istio-revision-tag-default \
+#     -o jsonpath='{range .webhooks[*]}{.name}{" ns="}{.namespaceSelector}{"\n"}{end}'
+#
+# Ha duas entradas possiveis, e as duas costumam existir juntas:
+#   namespace.sidecar-injector.istio.io      -> exige istio-injection: enabled
+#   rev.namespace.sidecar-injector.istio.io  -> exige istio.io/rev: <tag>  E
+#                                               NENHUM rotulo istio-injection
+# Por isso os dois rotulos juntos sao pior que um so': a presenca de
+# istio-injection desqualifica a entrada rev.
 # =============================================================================
 apiVersion: v1
 kind: Namespace
 metadata:
   name: fiap-bank
   labels:
-    # Leia o comentario do topo antes de trocar este rotulo.
-    istio.io/rev: default
+    istio-injection: enabled
     # Lido pelo metadataEnrichment do Dynatrace: vira atributo em todo span,
     # log e metrica deste namespace, e e' o que permite filtrar por
     # "aplicacao" em vez de por "pod" nas telas do LAB.
