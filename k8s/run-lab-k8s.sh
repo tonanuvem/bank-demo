@@ -26,11 +26,20 @@ PORTA_GW=80
 NOME_PORTA_SVC=http2
 FORCAR_PORTA=0
 
+# NodePort FIXO da entrada do banco. Sem isso o Kubernetes sorteia uma porta
+# entre 30000 e 32767 a cada cluster novo, e a URL do laboratorio muda toda
+# vez -- o que quebra slide, roteiro e qualquer link que o aluno tenha salvo.
+# 30400 e' so' um numero facil de lembrar ao lado da 31400 do gateway.
+# Vazio desliga a fixacao e volta ao sorteio.
+PORTA_EXTERNA="${PORTA_EXTERNA:-30400}"
+
 for arg in "$@"; do
     case "$arg" in
       --sem-istio) COM_ISTIO=0 ;;
       --urls)      MOSTRAR_URLS_APENAS=1 ;;
       --porta=*)   PORTA_GW="${arg#*=}"; NOME_PORTA_SVC=""; FORCAR_PORTA=1 ;;
+      --porta-externa=*) PORTA_EXTERNA="${arg#*=}" ;;
+      --sem-porta-fixa)  PORTA_EXTERNA="" ;;
     esac
 done
 
@@ -175,6 +184,38 @@ resolver_porta_gateway() {
     fi
 }
 
+# ---- NodePort fixo para a entrada do banco ----------------------------------
+# Troca APENAS o campo nodePort da porta que o banco usa, por indice, com JSON
+# patch. Nao mexe em mais nada do Service do ingressgateway: um patch de merge
+# na lista de portas poderia reescrever a lista inteira, e derrubar a entrada
+# no meio da aula e' pior do que conviver com uma porta sorteada.
+#
+# Se a porta ja' estiver tomada por outro Service, a API recusa e o laboratorio
+# segue com a porta sorteada -- o script avisa e continua.
+fixar_nodeport() {
+    local idx atual
+    [ -z "$PORTA_EXTERNA" ] && return 0
+
+    idx=$(kubectl -n istio-system get svc istio-ingressgateway \
+          -o jsonpath='{range .spec.ports[*]}{.port}{"\n"}{end}' 2>/dev/null \
+          | grep -n "^${PORTA_GW}$" | head -1 | cut -d: -f1)
+    [ -z "$idx" ] && { aviso "nao achei a porta $PORTA_GW no Service do ingressgateway."; return 0; }
+
+    atual=$(kubectl -n istio-system get svc istio-ingressgateway \
+            -o jsonpath="{.spec.ports[$((idx-1))].nodePort}" 2>/dev/null)
+    [ "$atual" = "$PORTA_EXTERNA" ] && return 0
+
+    if kubectl -n istio-system patch svc istio-ingressgateway --type=json \
+         -p "[{\"op\":\"replace\",\"path\":\"/spec/ports/$((idx-1))/nodePort\",\"value\":$PORTA_EXTERNA}]" \
+         >/dev/null 2>&1; then
+        echo "  entrada fixada no NodePort $PORTA_EXTERNA (era $atual)"
+    else
+        aviso "nao consegui fixar o NodePort $PORTA_EXTERNA -- provavelmente ja' esta em uso."
+        aviso "o laboratorio segue na porta sorteada ($atual). Para escolher outra:"
+        aviso "  bash k8s/run-lab-k8s.sh --porta-externa=NNNNN"
+    fi
+}
+
 # ---- por que nao injetou o sidecar? -----------------------------------------
 # Esta e' a falha que mais custa tempo na aula, e o aviso generico ("o rotulo
 # nao e' retroativo") esta certo em um caso so'. Aqui perguntamos ao cluster.
@@ -275,6 +316,7 @@ fi
 if [ "$COM_ISTIO" = 1 ]; then
     titulo "3/4  MALHA"
     resolver_porta_gateway
+    fixar_nodeport
     kubectl apply -f "$BASE/istio/00-gateway.yaml"
     if [ "$PORTA_GW" != 80 ]; then
         kubectl -n "$NS" patch gateway fiap-bank-gateway --type=json \

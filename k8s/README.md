@@ -96,6 +96,15 @@ para uma instituição financeira.
 > mesmo gateway: o Bookinfo continua no ar para a demo de Istio, e o banco tem
 > listener próprio. A URL impressa no fim do script já leva a porta certa.
 > Para forçar: `bash k8s/run-lab-k8s.sh --porta=80`.
+>
+> **O NodePort da entrada é fixado em 30400**, então a URL do banco é sempre
+> `http://IP:30400` — sem isso o Kubernetes sorteia uma porta entre 30000 e
+> 32767 a cada cluster novo e o endereço muda a cada aula, quebrando slide,
+> roteiro e link salvo. Se a porta já estiver em uso, o script avisa e segue
+> com a sorteada: `--porta-externa=NNNNN` escolhe outra, `--sem-porta-fixa`
+> volta ao sorteio. Isso altera um campo do Service `istio-ingressgateway`, e
+> um `istioctl install` posterior pode desfazer — rodar o script de novo
+> refaz.
 
 > **A carga precisa rodar ANTES.** O Davis constrói linha de base: sem 30–40
 > minutos de comportamento saudável ele não tem o que chamar de anomalia, e o
