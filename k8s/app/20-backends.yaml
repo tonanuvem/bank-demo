@@ -42,7 +42,7 @@ spec:
       containers:
         - name: accounts
           image: tonanuvem/fiap-bank-accounts-otel:lab
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - { name: grpc-accounts, containerPort: 50051 }
           envFrom:
@@ -86,7 +86,7 @@ spec:
       containers:
         - name: transactions
           image: tonanuvem/fiap-bank-transactions-otel:lab
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - { name: grpc-trans, containerPort: 50052 }
           envFrom:
@@ -134,7 +134,7 @@ spec:
       containers:
         - name: loan
           image: tonanuvem/fiap-bank-loan-otel:lab
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - { name: grpc-loan, containerPort: 50053 }
           envFrom:

@@ -29,7 +29,7 @@ spec:
       containers:
         - name: customer-auth
           image: tonanuvem/fiap-bank-customer-auth-otel:lab
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - { name: http-auth, containerPort: 8000 }
           envFrom:
@@ -70,7 +70,7 @@ spec:
       containers:
         - name: atm-locator
           image: tonanuvem/fiap-bank-atm-locator-otel:lab
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - { name: http-atm, containerPort: 8001 }
           envFrom:

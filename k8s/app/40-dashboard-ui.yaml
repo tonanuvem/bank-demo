@@ -29,7 +29,7 @@ spec:
       containers:
         - name: dashboard
           image: tonanuvem/fiap-bank-dashboard-otel:lab
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - { name: http-dashboard, containerPort: 5000 }
           envFrom:
@@ -54,6 +54,12 @@ spec:
   ports:
     - { name: http-dashboard, port: 5000, targetPort: 5000 }
 ---
+# ----------------------------------------------------------------------- ui
+# imagePullPolicy: Always em todos os Deployments deste laboratorio, e nao
+# IfNotPresent. A tag :lab e' MUTAVEL -- toda republicacao reaproveita o mesmo
+# nome. Com IfNotPresent o no' guarda a imagem velha em cache para sempre:
+# voce publica, reinicia o Deployment, o pod sobe em segundos e nada muda,
+# sem um erro sequer para explicar o porque.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -71,7 +77,7 @@ spec:
       containers:
         - name: ui
           image: tonanuvem/fiap-bank-ui-otel:lab
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - { name: http-ui, containerPort: 3000 }
           env:
