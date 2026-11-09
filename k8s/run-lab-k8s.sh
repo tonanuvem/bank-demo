@@ -202,7 +202,18 @@ kubectl apply -f "$BASE/app/50-transactions-v2.yaml"
 # paralelo -- o dobro de trafego na linha de base, e dois nos no Kiali para a
 # mesma coisa. Removemos o antigo, se ainda existir.
 kubectl -n "$NS" delete deploy,configmap carga-fundo --ignore-not-found >/dev/null 2>&1
-kubectl apply -f "$BASE/app/90-stress-carga.yaml"
+
+# Mudar o ConfigMap NAO reinicia o pod, e o arquivo montado so' e' atualizado
+# pelo kubelet depois de um tempo -- enquanto isso o `sh` que ja' esta rodando
+# segue executando o script velho, em silencio. Foi o que aconteceu quando a
+# carga ganhou o registro de codigo HTTP e os logs continuaram sem ele.
+# Por isso: se o ConfigMap mudou, reinicia o Deployment.
+SAIDA_CARGA=$(kubectl apply -f "$BASE/app/90-stress-carga.yaml")
+echo "$SAIDA_CARGA"
+if echo "$SAIDA_CARGA" | grep -q "^configmap/stress-carga configured"; then
+    echo "  script da carga mudou -- reiniciando o gerador"
+    kubectl -n "$NS" rollout restart deploy/stress-carga >/dev/null
+fi
 
 if [ "$COM_ISTIO" = 1 ]; then
     titulo "3/4  MALHA"
