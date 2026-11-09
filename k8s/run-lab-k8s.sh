@@ -91,11 +91,19 @@ mostrar_urls() {
 }
 
 # ---- de quem e' a porta 80 do ingressgateway? -------------------------------
-# O ambiente do LAB instala o Bookinfo junto com o Istio, e o Gateway dele ja'
-# ocupa a porta 80 com hosts ["*"]. Quando dois Gateways declaram a mesma porta
-# e o mesmo host, o Istio MESCLA os dois num unico listener e a ordem das rotas
-# entre eles nao e' garantida -- o /login (match exato) do Bookinfo passa a
-# disputar com a tela de login do banco, e o que quebra muda a cada deploy.
+# O ambiente do LAB instala o Bookinfo junto com o Istio, e o Gateway dele
+# ocupa a entrada com hosts ["*"]. Quando dois Gateways caem no mesmo listener
+# do Envoy, o Istio MESCLA os dois e a ordem das rotas entre eles nao e'
+# garantida -- o /login (match exato) do Bookinfo passa a disputar com a tela
+# de login do banco. Medido: GET /login devolvia 405 Method Not Allowed, que
+# e' o Flask do Bookinfo respondendo no lugar do banco.
+#
+# PORTA 80 OU 8080, E E' A MESMA COISA. O Service istio-ingressgateway mapeia
+# a porta 80 para targetPort 8080, e o Istio TRADUZ a porta declarada no
+# Gateway para o targetPort correspondente. Entao um Gateway que declara 80 e
+# outro que declara 8080 -- o caso do Bookinfo nas versoes recentes -- vao
+# parar no mesmo listener 8080. Procurar so' por 80 nao acha nada, que foi
+# exatamente o que aconteceu aqui por tres execucoes seguidas.
 #
 # Em vez de apagar o Gateway do ambiente, o banco sai da frente: o profile demo
 # ja' expoe a porta 31400 no MESMO ingressgateway, e ela esta livre. O Bookinfo
@@ -109,7 +117,8 @@ resolver_porta_gateway() {
     # continuava disputando a porta 80 com o Bookinfo.
     dono=$(kubectl get gateways.networking.istio.io -A \
            -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{" "}{.spec.servers[*].port.number}{"\n"}{end}' 2>/dev/null \
-           | grep -v "^$NS/" | awk '{for (i=2;i<=NF;i++) if ($i==80) {print $1; exit}}')
+           | grep -v "^$NS/" \
+           | awk '{for (i=2;i<=NF;i++) if ($i==80 || $i==8080) {print $1" porta "$i; exit}}')
     [ -z "$dono" ] && return 0
 
     alt=$(kubectl -n istio-system get svc istio-ingressgateway \
@@ -117,12 +126,16 @@ resolver_porta_gateway() {
     if [ -n "$alt" ]; then
         PORTA_GW=31400
         NOME_PORTA_SVC="$alt"
-        aviso "a porta 80 do ingressgateway ja' e' do Gateway $dono (Bookinfo do ambiente)."
+        aviso "a entrada ja' e' do Gateway $dono (Bookinfo do ambiente)."
         aviso "o banco vai usar a 31400 do mesmo gateway; o Bookinfo continua funcionando."
     else
-        aviso "a porta 80 ja' e' do Gateway $dono e a 31400 nao esta exposta."
-        aviso "se o banco nao abrir, libere a porta 80:"
-        aviso "  kubectl -n ${dono%%/*} delete gateway ${dono##*/}"
+        local ref ns_dono nome_dono
+        ref=${dono%% *}          # ns/nome, sem o " porta N"
+        ns_dono=${ref%%/*}
+        nome_dono=${ref##*/}
+        aviso "a entrada ja' e' do Gateway $dono e a 31400 nao esta exposta."
+        aviso "se o banco nao abrir, libere a entrada:"
+        aviso "  kubectl -n $ns_dono delete gateway $nome_dono"
     fi
 }
 
@@ -208,11 +221,19 @@ kubectl -n "$NS" delete deploy,configmap carga-fundo --ignore-not-found >/dev/nu
 # segue executando o script velho, em silencio. Foi o que aconteceu quando a
 # carga ganhou o registro de codigo HTTP e os logs continuaram sem ele.
 # Por isso: se o ConfigMap mudou, reinicia o Deployment.
-SAIDA_CARGA=$(kubectl apply -f "$BASE/app/90-stress-carga.yaml")
-echo "$SAIDA_CARGA"
-if echo "$SAIDA_CARGA" | grep -q "^configmap/stress-carga configured"; then
-    echo "  script da carga mudou -- reiniciando o gerador"
-    kubectl -n "$NS" rollout restart deploy/stress-carga >/dev/null
+kubectl apply -f "$BASE/app/90-stress-carga.yaml"
+
+# O pod guarda no rotulo o hash do arquivo que o gerou. Se o hash mudou, o
+# patch muda o template e o Kubernetes reinicia sozinho; se nao mudou, o patch
+# nao faz nada. Olhar a saida do apply nao serve: ela so' diz "configured" na
+# execucao em que o ConfigMap muda, e quem rodar depois fica com o script
+# velho rodando para sempre.
+HASH_CARGA=$(md5sum "$BASE/app/90-stress-carga.yaml" 2>/dev/null | cut -c1-12)
+[ -z "$HASH_CARGA" ] && HASH_CARGA=$(md5 -q "$BASE/app/90-stress-carga.yaml" 2>/dev/null | cut -c1-12)
+if [ -n "$HASH_CARGA" ]; then
+    kubectl -n "$NS" patch deploy stress-carga \
+      -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"fiap/script\":\"$HASH_CARGA\"}}}}}" \
+      >/dev/null 2>&1
 fi
 
 if [ "$COM_ISTIO" = 1 ]; then
