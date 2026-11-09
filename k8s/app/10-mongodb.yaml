@@ -1,0 +1,60 @@
+# =============================================================================
+# MongoDB -- base unica do FIAP OTEL BANK
+# =============================================================================
+# No compose a base ficava FORA (host.docker.internal:27017), compartilhada
+# entre as variantes de rede. Aqui ela entra no cluster: o LAB inteiro sobe e
+# desce com `kubectl apply/delete`, sem dependencia da EC2.
+#
+# emptyDir de proposito: os dados morrem com o pod. Para um laboratorio de 3h
+# isso e' uma VANTAGEM -- cada `kubectl rollout restart` devolve o ambiente
+# limpo. Para manter dados entre aulas, troque por um PVC.
+#
+# SEM sidecar do Istio (sidecar.istio.io/inject: "false"): o Envoy intercepta
+# o protocolo do Mongo como TCP opaco, o que nao agrega nada ao LAB e so'
+# atrapalha o diagnostico quando algo falha na conexao. Repare na diferenca
+# nas telas: o Dynatrace MESMO ASSIM mostra as queries do Mongo dentro do
+# trace, porque o OneAgent instrumenta o driver pymongo DENTRO do processo --
+# o Kiali, que so' enxerga o que passa pelo Envoy, nao mostra. Essa e' a
+# pergunta do Bloco B do roteiro.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: fiap-bank
+  labels: { app: mongodb, version: v1 }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mongodb }
+  template:
+    metadata:
+      labels: { app: mongodb, version: v1 }
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:7.0
+          ports:
+            - { name: mongo, containerPort: 27017 }
+          volumeMounts:
+            - { name: dados, mountPath: /data/db }
+          resources:
+            requests: { memory: 256Mi, cpu: 100m }
+            limits:   { memory: 1Gi,   cpu: 500m }
+      volumes:
+        - name: dados
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: fiap-bank
+spec:
+  selector: { app: mongodb }
+  ports:
+    # O prefixo "tcp-" no nome da porta e' a forma de dizer ao Istio
+    # "isto nao e' HTTP, nao tente aplicar politica de camada 7".
+    - { name: tcp-mongo, port: 27017, targetPort: 27017 }

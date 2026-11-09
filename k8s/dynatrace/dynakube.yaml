@@ -1,0 +1,81 @@
+# =============================================================================
+# DynaKube -- a configuracao do Dynatrace dentro do cluster
+# =============================================================================
+# UMA versao so'. O rascunho do LAB tinha tres blocos alternativos colados um
+# embaixo do outro; em aula isso vira duvida sobre qual aplicar.
+#
+# ANTES DE APLICAR, confirme a apiVersion que o SEU operator expoe -- ela muda
+# entre releases e aplicar a errada devolve "no matches for kind DynaKube":
+#
+#   kubectl api-resources | grep -i dynakube
+#
+# Substitua tambem SEU-AMBIENTE pelo id do tenant (aparece no rodape do menu
+# do Dynatrace, algo como mte16556).
+# =============================================================================
+apiVersion: dynatrace.com/v1beta6
+kind: DynaKube
+metadata:
+  name: dynakube
+  namespace: dynatrace
+  annotations:
+    # Registra o cluster sozinho como entidade Kubernetes, sem passo manual
+    # na console. E' o que faz o cluster aparecer no app Kubernetes.
+    feature.dynatrace.com/automatic-kubernetes-api-monitoring: "true"
+spec:
+  apiUrl: https://SEU-AMBIENTE.apps.dynatrace.com/api
+
+  # ---------------------------------------------------------------------------
+  # enableIstio: NAO e' opcional neste laboratorio.
+  #
+  # Com mTLS em STRICT, o Envoy intercepta a saida de TODO pod do mesh --
+  # inclusive a do OneAgent tentando falar com o tenant do Dynatrace na
+  # internet. Sem este campo, o agente instala, sobe, e fica mudo: nenhum dado
+  # chega e nao ha erro obvio em lugar nenhum.
+  #
+  # Ligado, o operator cria ServiceEntry e VirtualService liberando o trafego
+  # de saida para os enderecos do Dynatrace. Vale mostrar em aula:
+  #   kubectl -n dynatrace get serviceentry,virtualservice
+  #
+  # E' um bom exemplo de "a malha quebrou a observabilidade" -- a classe de
+  # problema que o aluno vai encontrar em producao.
+  # ---------------------------------------------------------------------------
+  enableIstio: true
+
+  # Enriquece span, log e metrica com os rotulos do pod/namespace. E' o que
+  # permite filtrar por aplicacao em vez de por nome de pod nas telas.
+  metadataEnrichment:
+    enabled: true
+
+  oneAgent:
+    cloudNativeFullStack:
+      env:
+        - { name: ONEAGENT_ENABLE_LOG_MONITORING, value: "true" }
+      # Necessario no cluster kubeadm, onde o control plane roda em no' com
+      # taint. No EKS e' inofensivo.
+      tolerations:
+        - { effect: NoSchedule, key: node-role.kubernetes.io/master, operator: Exists }
+        - { effect: NoSchedule, key: node-role.kubernetes.io/control-plane, operator: Exists }
+      # ---------------------------------------------------------------------
+      # O que NAO instrumentar. Dois motivos:
+      #   custo   -- em conta trial o consumo e' por host/pod monitorado;
+      #   ruido   -- instrumentar o proprio istio-system e o dynatrace mistura
+      #              a infraestrutura de observabilidade com o que se quer
+      #              observar, e o Service Map fica ilegivel.
+      #
+      # DECISAO DE AULA: istio-system esta na lista de exclusao. Isso significa
+      # que o istiod NAO aparece como processo monitorado. Se voce quiser
+      # mostrar o control plane do Istio no Dynatrace (comparando com o "Istio
+      # Control Plane Dashboard" do Grafana), remova istio-system daqui -- e
+      # saiba que o consumo sobe.
+      # ---------------------------------------------------------------------
+      namespaceSelector:
+        matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: NotIn
+            values: [kube-system, kube-public, kube-node-lease, istio-system, dynatrace, cert-manager]
+
+  activeGate:
+    capabilities: [routing, kubernetes-monitoring, dynatrace-api]
+    resources:
+      requests: { memory: 512Mi, cpu: 250m }
+      limits:   { memory: 1Gi,   cpu: 500m }

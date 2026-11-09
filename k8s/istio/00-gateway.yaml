@@ -1,0 +1,71 @@
+# =============================================================================
+# Entrada unica do FIAP OTEL BANK pela malha
+# =============================================================================
+# POR QUE ORIGEM UNICA, e nao tres portas como no compose.
+#
+# No compose o navegador falava com host:3000 (ui), host:5000 (dashboard),
+# host:8000 (customer-auth) e host:8001 (atm-locator). Em Kubernetes isso nao
+# se traduz: NodePort so' abre portas de 30000 para cima, entao `:8000` nao
+# existe do lado de fora. Publicar quatro LoadBalancers resolveria e custaria
+# quatro enderecos -- e continuaria deixando o Gateway do Istio de fora do
+# caminho, que e' justamente o que queremos observar.
+#
+# Entao: UMA entrada, e o CAMINHO decide o destino.
+#
+#   /                 -> ui             (o HTML)
+#   /api/users/...    -> customer-auth  (login)
+#   /api/atm/...      -> atm-locator    (caixas)
+#   /account/...      -> dashboard
+#   /transaction/...  -> dashboard
+#   /loan/...         -> dashboard
+#
+# Efeito colateral didatico: AGORA todo o trafego de entrada passa pelo
+# istio-ingressgateway, entao ele aparece como o primeiro no' do mapa no
+# Kiali e no Dynatrace. Na aula 1 e na aula 2 o primeiro no' era o proprio
+# servico; a diferenca e' visivel e vale a pergunta "quem e' esse no' novo?".
+#
+# A UI precisa saber dessa mudanca -- quem monta as URLs e' o bundle React no
+# navegador. E' o papel de FIAP_API_BASE (ui/src/slices/apiUrls.js).
+# =============================================================================
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: fiap-bank-gateway
+  namespace: fiap-bank
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts: ["*"]
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: fiap-bank-entrada
+  namespace: fiap-bank
+spec:
+  hosts: ["*"]
+  gateways: [fiap-bank-gateway]
+  http:
+    # A ORDEM IMPORTA: o Istio avalia de cima para baixo e para na primeira
+    # regra que casa. A rota "/" e' prefixo de tudo, entao precisa ser a
+    # ULTIMA -- se subir para o topo, a aplicacao serve HTML para as chamadas
+    # de API e o login falha com "Unexpected token < in JSON".
+    - match: [{ uri: { prefix: /api/users } }]
+      route: [{ destination: { host: customer-auth, port: { number: 8000 } } }]
+
+    - match: [{ uri: { prefix: /api/atm } }]
+      route: [{ destination: { host: atm-locator, port: { number: 8001 } } }]
+
+    - match:
+        - { uri: { prefix: /account } }
+        - { uri: { prefix: /transaction } }
+        - { uri: { prefix: /loan } }
+      route: [{ destination: { host: dashboard, port: { number: 5000 } } }]
+
+    - match: [{ uri: { prefix: / } }]
+      route: [{ destination: { host: ui, port: { number: 3000 } } }]

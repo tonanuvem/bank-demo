@@ -1,0 +1,95 @@
+# =============================================================================
+# Servicos Node: customer-auth (login) e atm-locator (caixas eletronicos)
+# =============================================================================
+# Sao os dois servicos que o NAVEGADOR chama direto, sem passar pelo dashboard.
+# No compose eles ficavam publicados em 8000 e 8001 no host; aqui ficam
+# fechados no cluster e sao alcancados pelo Gateway do Istio em /api/users e
+# /api/atm (ver k8s/istio/00-gateway.yaml).
+#
+# Diferenca de convencao semantica que vale citar em aula: os servicos Node
+# emitem http.response.status_code (convencao nova) e os Python emitem
+# http.status_code (convencao antiga). No Grafana da aula 2 isso obrigou a
+# escrever duas queries. Veja na tela do Dynatrace se o OneAgent normaliza
+# isso -- ele instrumenta no runtime, nao depende da convencao do SDK.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-auth
+  namespace: fiap-bank
+  labels: { app: customer-auth, version: v1 }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: customer-auth, version: v1 }
+  template:
+    metadata:
+      labels: { app: customer-auth, version: v1 }
+    spec:
+      containers:
+        - name: customer-auth
+          image: tonanuvem/fiap-bank-customer-auth-otel:lab
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http-auth, containerPort: 8000 }
+          envFrom:
+            - configMapRef: { name: fiap-bank-config }
+          env:
+            - { name: OTEL_SERVICE_NAME, value: customer-auth }
+            - { name: PORT,     value: "8000" }
+            - { name: NODE_ENV, value: "production" }
+          resources:
+            requests: { memory: 128Mi, cpu: 50m }
+            limits:   { memory: 512Mi, cpu: 500m }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-auth
+  namespace: fiap-bank
+  labels: { app: customer-auth }
+spec:
+  selector: { app: customer-auth }
+  ports:
+    - { name: http-auth, port: 8000, targetPort: 8000 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: atm-locator
+  namespace: fiap-bank
+  labels: { app: atm-locator, version: v1 }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: atm-locator, version: v1 }
+  template:
+    metadata:
+      labels: { app: atm-locator, version: v1 }
+    spec:
+      containers:
+        - name: atm-locator
+          image: tonanuvem/fiap-bank-atm-locator-otel:lab
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http-atm, containerPort: 8001 }
+          envFrom:
+            - configMapRef: { name: fiap-bank-config }
+          env:
+            - { name: OTEL_SERVICE_NAME, value: atm-locator }
+            - { name: PORT,     value: "8001" }
+            - { name: NODE_ENV, value: "production" }
+          resources:
+            requests: { memory: 128Mi, cpu: 50m }
+            limits:   { memory: 512Mi, cpu: 500m }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: atm-locator
+  namespace: fiap-bank
+  labels: { app: atm-locator }
+spec:
+  selector: { app: atm-locator }
+  ports:
+    - { name: http-atm, port: 8001, targetPort: 8001 }

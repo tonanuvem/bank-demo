@@ -1,0 +1,79 @@
+# =============================================================================
+# CHAOS ENGINEERING PELA MALHA -- referencia (aplicado pelo caos.sh)
+# =============================================================================
+# Este arquivo e' material de LEITURA para o aluno. Quem aplica em aula e' o
+# `caos.sh`, que reescreve os valores. Mantenha-o aberto ao lado da tela do
+# Dynatrace durante o game day.
+#
+# A PROPRIEDADE QUE FAZ ISSO VALER A AULA:
+# a aplicacao NAO SABE que esta falhando. O container esta saudavel, o
+# processo nao tem excecao, o log do pod nao registra nada de anormal. Quem
+# atrasa e quem devolve 503 e' o sidecar Envoy, antes de a requisicao chegar
+# ao codigo.
+#
+# Consequencia pratica: o reflexo treinado nas aulas 1 e 2 -- "abrir o log do
+# servico que falhou" -- nao encontra nada. O aluno precisa subir um nivel e
+# olhar a topologia. E' exatamente o cenario de um problema de rede, de
+# service mesh mal configurado ou de dependencia externa degradada.
+#
+# -----------------------------------------------------------------------------
+# NIVEL 1 -- ATRASO (reproduz a "degradacao silenciosa" da v1.2.0)
+# -----------------------------------------------------------------------------
+# 50% das requisicoes a transactions esperam 7s antes de seguir. Todas
+# respondem 200: a taxa de erro fica em ZERO e o mapa continua verde.
+#
+# O que deve acontecer nas telas:
+#   - SLO de latencia comeca a queimar; SLO de disponibilidade intacto
+#   - volume de transferencias/min CAI (o usuario desiste antes do fim)
+#   - o Davis pode levar mais tempo para abrir problema do que levou no erro:
+#     cronometre e discuta por que.
+#
+# apiVersion: networking.istio.io/v1
+# kind: VirtualService
+# metadata: { name: transactions, namespace: fiap-bank }
+# spec:
+#   hosts: [transactions]
+#   http:
+#     - fault:
+#         delay:
+#           percentage: { value: 50 }
+#           fixedDelay: 7s
+#       route:
+#         - destination: { host: transactions, subset: v1 }
+#
+# -----------------------------------------------------------------------------
+# NIVEL 2 -- ERRO (reproduz o incidente da v1.3.0, sem tocar no container)
+# -----------------------------------------------------------------------------
+# 20% das requisicoes recebem HTTP 503 direto do Envoy.
+#
+# O que deve acontecer:
+#   - o Davis abre problema sozinho. CRONOMETRE. Compare com o tempo que voce
+#     levou para achar o mesmo sintoma no Grafana da aula 2.
+#   - o card do Davis aponta uma entidade como causa. Ele acerta? O que ele
+#     diria se soubesse que a falha esta no sidecar e nao no processo?
+#
+# spec:
+#   hosts: [transactions]
+#   http:
+#     - fault:
+#         abort:
+#           percentage: { value: 20 }
+#           httpStatus: 503
+#       route:
+#         - destination: { host: transactions, subset: v1 }
+#
+# -----------------------------------------------------------------------------
+# NIVEL 3 -- OS DOIS JUNTOS, durante o canary
+# -----------------------------------------------------------------------------
+# E' o cenario final do roteiro: v2 recebendo 20% da carga E fault injection
+# ativa. Dois sintomas sobrepostos, origens diferentes. O aluno tem que
+# separar um do outro usando as telas -- sem perguntar.
+#
+# -----------------------------------------------------------------------------
+# LIMITE QUE PRECISA SER DITO EM AULA
+# -----------------------------------------------------------------------------
+# Isto NAO e' chaos engineering completo: so' mexe no trafego HTTP entre
+# servicos. Nao mata pod, nao satura CPU, nao particiona rede, nao enche
+# disco. Para esses, Chaos Mesh ou LitmusChaos (fora do escopo das 3h).
+# O ganho aqui e' custo zero de instalacao e reversao instantanea -- o que
+# importa quando sao 25 ambientes simultaneos e 3 horas de aula.

@@ -1,0 +1,83 @@
+# =============================================================================
+# RESILIENCIA: circuit breaker e retry -- a malha reagindo sozinha
+# =============================================================================
+# Aplique DEPOIS do game day, com a falha ainda ativa. O efeito e' visivel em
+# menos de um minuto e e' o momento mais forte do bloco de service mesh:
+# a taxa de erro cai sem ninguem ter corrigido nada.
+#
+#   kubectl apply -f k8s/istio/40-resiliencia.yaml
+#
+# -----------------------------------------------------------------------------
+# outlierDetection = circuit breaker por instancia
+# -----------------------------------------------------------------------------
+# Traducao dos parametros abaixo: "a cada 10s, olhe cada pod; se ele devolveu
+# 5 erros consecutivos, tire-o do balanceamento por 30s; mas nunca tire mais
+# de metade dos pods, senao o remedio vira a doenca".
+#
+# O ultimo parametro (maxEjectionPercent) e' o que separa resiliencia de
+# apagao auto-infligido. Com 100%, uma falha sistemica -- um banco de dados
+# fora, que faz TODOS os pods errarem -- ejetaria todos e derrubaria o
+# servico inteiro. Vale a pergunta em aula: por que 50 e nao 100?
+# =============================================================================
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: transactions
+  namespace: fiap-bank
+spec:
+  host: transactions
+  trafficPolicy:
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        maxRequestsPerConnection: 10
+  subsets:
+    - name: v1
+      labels: { version: v1 }
+    - name: v2
+      labels: { version: v2 }
+---
+# -----------------------------------------------------------------------------
+# retry -- o que o aluno costuma errar
+# -----------------------------------------------------------------------------
+# Retry melhora a disponibilidade PERCEBIDA e piora a carga real: 3 tentativas
+# num servico ja' sobrecarregado triplicam o trafego exatamente quando ele
+# menos aguenta. E' o mecanismo classico de amplificacao de incidente.
+#
+# Repare tambem no efeito nas TELAS: com retry ativo, o cliente ve sucesso e o
+# SLO de disponibilidade fica verde, enquanto o servico de tras continua
+# errando. A verdade passa a estar na latencia e na contagem de chamadas, nao
+# na taxa de erro. Esse descolamento entre "o que o cliente sente" e "o que o
+# sistema faz" e' o tema da aula 1 aparecendo de novo, por outro caminho.
+#
+# retryOn: 5xx inclui a requisicao abortada pelo fault injection -- para o
+# Envoy que faz o retry, um 503 injetado e' um 503 como outro qualquer. Teste:
+# ligue o retry com o NIVEL 2 do caos ativo e veja a taxa de erro cair.
+#
+# COMO APLICAR: NAO crie um segundo VirtualService para o host `transactions`.
+# Dois VirtualServices com o mesmo host entram em conflito -- o Istio aceita
+# os dois objetos, aplica so' um e registra o aviso num log que ninguem le
+# durante a aula. O bloco `retries` vai DENTRO da rota que ja' existe em
+# k8s/istio/20-canary.yaml:
+#
+#   spec:
+#     hosts: [transactions]
+#     http:
+#       - retries:                          # <-- acrescente estas 4 linhas
+#           attempts: 3
+#           perTryTimeout: 2s
+#           retryOn: 5xx,reset,connect-failure
+#         route:
+#           - destination: { host: transactions, subset: v1 }
+#             weight: 100
+#           - destination: { host: transactions, subset: v2 }
+#             weight: 0
+#
+# Ou, sem editar arquivo:  bash k8s/caos.sh retry on   /   bash k8s/caos.sh retry off

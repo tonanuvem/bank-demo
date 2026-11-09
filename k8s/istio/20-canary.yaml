@@ -1,0 +1,36 @@
+# =============================================================================
+# VirtualService: divisao de carga entre v1 e v2 do transactions
+# =============================================================================
+# Estado inicial: 100% v1. O `caos.sh canary <pct>` reescreve os pesos.
+#
+# O QUE OBSERVAR quando os pesos mudarem (e por que isso fecha a aula 2):
+#
+#   Na aula 2 o deploy era total -- a v1.3.0 ia para 100% dos usuarios de uma
+#   vez, o Error Budget derretia e o CFR subia. O aluno MEDIU o estrago.
+#
+#   Aqui a v2 comeca com 20%. O estrago e' proporcional: um quinto dos
+#   usuarios. Isso muda tres coisas nas telas, e vale conferir uma a uma:
+#
+#   1. O Davis ainda abre problema? (deveria -- 15% de 20% ainda e' erro)
+#   2. O SLO queima mais devagar? Em que proporcao?
+#   3. O anel do no' no mapa fica vermelho ou so' alaranjado?
+#
+#   E a pergunta que importa: 20% de usuarios afetados e' aceitavel para
+#   descobrir que a versao esta ruim? Qual seria o numero na B3?
+#
+# Os pesos TEM que somar 100. O Istio rejeita o objeto se nao somarem, com
+# mensagem clara -- mas so' no `kubectl apply`, nunca em runtime.
+# =============================================================================
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: transactions
+  namespace: fiap-bank
+spec:
+  hosts: [transactions]
+  http:
+    - route:
+        - destination: { host: transactions, subset: v1 }
+          weight: 100
+        - destination: { host: transactions, subset: v2 }
+          weight: 0

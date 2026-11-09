@@ -1,0 +1,105 @@
+# =============================================================================
+# dashboard (BFF) e ui (frontend React)
+# =============================================================================
+# O dashboard e' o ponto de fan-out do sistema: toda transferencia, extrato,
+# abertura de conta e emprestimo passa por ele antes de chegar ao servico de
+# negocio. No Service Map da aula 1 ele era o no' com mais arestas saindo;
+# aqui ele e' quem torna visivel a cadeia ui -> dashboard -> transactions ->
+# mongodb nas telas do Dynatrace.
+#
+# A UI serve HTML para o navegador do aluno. Ela NAO fala com os servicos pela
+# rede do cluster: quem chama as APIs e' o navegador, de fora. Por isso ela
+# precisa saber em que URL publica as APIs atendem -- e' o papel do
+# FIAP_API_BASE abaixo (ver o comentario em k8s/istio/00-gateway.yaml).
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  namespace: fiap-bank
+  labels: { app: dashboard, version: v1 }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: dashboard, version: v1 }
+  template:
+    metadata:
+      labels: { app: dashboard, version: v1 }
+    spec:
+      containers:
+        - name: dashboard
+          image: tonanuvem/fiap-bank-dashboard-otel:lab
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http-dashboard, containerPort: 5000 }
+          envFrom:
+            - configMapRef: { name: fiap-bank-config }
+          env:
+            - { name: OTEL_SERVICE_NAME, value: dashboard }
+            # false mantem o SyntaxError do frontend, que e' material da aula 1.
+            # Em true, a falha responde JSON 503 limpo.
+            - { name: ERROS_AMIGAVEIS, value: "false" }
+          resources:
+            requests: { memory: 128Mi, cpu: 50m }
+            limits:   { memory: 512Mi, cpu: 500m }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  namespace: fiap-bank
+  labels: { app: dashboard }
+spec:
+  selector: { app: dashboard }
+  ports:
+    - { name: http-dashboard, port: 5000, targetPort: 5000 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui
+  namespace: fiap-bank
+  labels: { app: ui, version: v1 }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: ui, version: v1 }
+  template:
+    metadata:
+      labels: { app: ui, version: v1 }
+    spec:
+      containers:
+        - name: ui
+          image: tonanuvem/fiap-bank-ui-otel:lab
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http-ui, containerPort: 3000 }
+          env:
+            - { name: DEPLOYMENT_ENV, value: "lab-fiap-k8s" }
+            - { name: APP_VERSION,    value: "1.0.0" }
+            # ---------------------------------------------------------------
+            # ORIGEM UNICA. No compose o navegador falava com tres portas do
+            # host (5000, 8000, 8001). Aqui tudo entra pelo Gateway do Istio,
+            # numa porta so', e o caminho distingue o destino.
+            #
+            # Vazio = comportamento das aulas 1 e 2 (host:5000/8000/8001).
+            # Preenchido pelo run-lab-k8s.sh com a URL do Gateway.
+            # ---------------------------------------------------------------
+            - { name: FIAP_API_BASE, value: "" }
+            # RUM: preencha para ligar o Real User Monitoring do Dynatrace
+            # (injecao automatica pelo OneAgent tambem funciona -- ver roteiro).
+            - { name: FARO_COLLECTOR_URL, value: "" }
+          resources:
+            requests: { memory: 64Mi,  cpu: 50m }
+            limits:   { memory: 256Mi, cpu: 300m }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: fiap-bank
+  labels: { app: ui }
+spec:
+  selector: { app: ui }
+  ports:
+    - { name: http-ui, port: 3000, targetPort: 3000 }

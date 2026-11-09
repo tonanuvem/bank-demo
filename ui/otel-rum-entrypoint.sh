@@ -124,11 +124,28 @@ fi
 # ---------------------------------------------------------------------------
 PORTA_DASHBOARD="${PORTA_DASHBOARD:-5000}"
 
+# FIAP_API_BASE -- origem unica, usada quando a aplicacao roda atras de um
+# proxy ou de um gateway (Kubernetes + Istio, no LAB 3).
+#
+# Vazio (padrao): comportamento das aulas 1 e 2 -- o navegador chama o mesmo
+# host em tres portas (dashboard, 8000 e 8001), que e' o que o docker-compose
+# publica.
+#
+# Preenchido (ex.: http://54.1.2.3:31380): TODAS as chamadas vao para essa
+# origem e o CAMINHO distingue o destino. E' o unico modo que funciona em
+# Kubernetes, onde NodePort so' abre portas acima de 30000 e `:8000` nao
+# existe do lado de fora.
+FIAP_API_BASE="${FIAP_API_BASE:-}"
+
 if ! grep -q "FIAP-API-START" "$INDEX" 2>/dev/null; then
-  echo "[api] dashboard na porta ${PORTA_DASHBOARD}"
+  if [ -n "$FIAP_API_BASE" ]; then
+    echo "[api] origem unica: ${FIAP_API_BASE}"
+  else
+    echo "[api] dashboard na porta ${PORTA_DASHBOARD}"
+  fi
   cat > /tmp/api-snippet.html <<SNIPPET
     <!-- FIAP-API-START (injetado por otel-rum-entrypoint.sh) -->
-    <script>window.__FIAP_API__ = { dashboard: ${PORTA_DASHBOARD} };</script>
+    <script>window.__FIAP_API__ = { dashboard: ${PORTA_DASHBOARD}, base: "${FIAP_API_BASE}" };</script>
     <!-- FIAP-API-END -->
 SNIPPET
   awk '/<\/head>/ && !done { while ((getline line < "/tmp/api-snippet.html") > 0) print line; done=1 } { print }' \

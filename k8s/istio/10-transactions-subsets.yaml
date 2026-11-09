@@ -1,0 +1,25 @@
+# =============================================================================
+# DestinationRule: define os subsets v1 e v2 do servico transactions
+# =============================================================================
+# Um subset e' so' um apelido para um conjunto de pods, escolhido por rotulo.
+# Sem este arquivo o VirtualService do canary nao tem o que rotear e o Istio
+# devolve 503 com "no healthy upstream" -- um erro que parece problema de
+# aplicacao e nao e'.
+#
+# Regra pratica que vale dizer em aula: DestinationRule diz QUAIS destinos
+# existem; VirtualService diz QUANTO cada um recebe. Sao dois objetos porque
+# mudam em ritmos diferentes -- os subsets duram o ciclo da versao, os pesos
+# mudam de minuto em minuto durante um rollout.
+# =============================================================================
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: transactions
+  namespace: fiap-bank
+spec:
+  host: transactions
+  subsets:
+    - name: v1
+      labels: { version: v1 }
+    - name: v2
+      labels: { version: v2 }

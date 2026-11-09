@@ -1,0 +1,70 @@
+# =============================================================================
+# FIAP OTEL BANK no Kubernetes -- namespace e configuracao comum
+# =============================================================================
+# O rotulo istio-injection=enabled e' o que faz o Istio injetar o sidecar
+# Envoy em TODO pod criado neste namespace. Sem ele os pods sobem, a aplicacao
+# funciona e nada aparece no Kiali -- a falha mais comum deste laboratorio.
+#
+# Confira depois do deploy:  kubectl -n fiap-bank get pods
+#   READY 2/2  = aplicacao + sidecar  (correto)
+#   READY 1/1  = sem sidecar          (o rotulo nao estava la' no momento do deploy)
+# O rotulo nao e' retroativo: se esquecer, `kubectl -n fiap-bank rollout restart deploy`.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fiap-bank
+  labels:
+    istio-injection: enabled
+    # Lido pelo metadataEnrichment do Dynatrace: vira atributo em todo span,
+    # log e metrica deste namespace, e e' o que permite filtrar por
+    # "aplicacao" em vez de por "pod" nas telas do LAB.
+    app.kubernetes.io/part-of: fiap-bank
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fiap-bank-config
+  namespace: fiap-bank
+data:
+  # ---------------------------------------------------------------------
+  # DNS interno: no compose os servicos se achavam pelo nome do container.
+  # No Kubernetes o nome do Service cumpre o mesmo papel, entao os valores
+  # sao identicos aos do docker-compose-network-docker-internal.yml.
+  # ---------------------------------------------------------------------
+  ACCOUNT_HOST: "accounts"
+  TRANSACTION_HOST: "transactions"
+  LOAN_HOST: "loan"
+  CUSTOMER_AUTH_HOST: "customer-auth"
+  ATM_LOCATOR_HOST: "atm-locator"
+  SERVICE_PROTOCOL: "http"
+  DB_URL: "mongodb://mongodb:27017/bank"
+  DEPLOYMENT_ENV: "lab-fiap-k8s"
+
+  # ---------------------------------------------------------------------
+  # OTel DESLIGADO por padrao neste laboratorio -- e' a decisao mais
+  # importante deste arquivo, entao vale a explicacao completa.
+  #
+  # As imagens -otel sobem com `opentelemetry-instrument` (Python) e com
+  # `--require @splunk/otel/instrument` (Node) no proprio ENTRYPOINT: a
+  # instrumentacao OTel esta COMPILADA na imagem, nao e' opcional.
+  #
+  # Aqui quem instrumenta e' o OneAgent do Dynatrace (cloudNativeFullStack),
+  # que injeta no processo sem tocar na imagem. Deixar os dois ligados ao
+  # mesmo tempo da' dois problemas:
+  #   1. span duplicado -- a mesma requisicao aparece duas vezes no trace;
+  #   2. o SDK OTel tenta exportar para o default localhost:4317, onde nao
+  #      ha collector nenhum, e enche o log do pod de "connection refused"
+  #      a cada export. No LAB isso polui justamente a tela de Logs que
+  #      vamos usar para comparar com o Loki da aula 2.
+  #
+  # OTEL_SDK_DISABLED=true desliga o SDK no arranque e resolve os dois.
+  # O wrapper continua no entrypoint, apenas nao faz nada.
+  #
+  # Para LIGAR o OTel apontando para o Dynatrace (exercicio opcional do
+  # bloco de ingestao aberta), troque para "false" e descomente o endpoint
+  # do ActiveGate abaixo -- e' o mesmo caminho que o Splunk usou na aula 1,
+  # trocando so' o destino.
+  # ---------------------------------------------------------------------
+  OTEL_SDK_DISABLED: "true"
+  # OTEL_EXPORTER_OTLP_ENDPOINT: "https://dynakube-activegate.dynatrace:9999/e/<TENANT>/api/v2/otlp"

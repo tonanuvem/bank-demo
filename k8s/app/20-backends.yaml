@@ -1,0 +1,149 @@
+# =============================================================================
+# Servicos Python de negocio: accounts, transactions (v1) e loan
+# =============================================================================
+# As portas NAO sao arbitrarias -- estao escritas no dashboard.py, que monta
+# "{host}:50051", "{host}:50052" e "{host}:50053". Mudar aqui quebra a
+# aplicacao sem nenhuma mensagem de erro util.
+#
+#   accounts      50051
+#   transactions  50052
+#   loan          50053
+#
+# O nome da porta comecando com "http-" e' exigencia do Istio para que ele
+# trate o trafego como camada 7. Com nome generico ele cai para TCP e voce
+# perde: metrica por rota, fault injection, retry, canary por peso -- ou seja,
+# metade do laboratorio.
+#
+# O rotulo `version` e' o que o DestinationRule usa para formar os subsets do
+# canary. Todo Deployment daqui nasce com version: v1.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts
+  namespace: fiap-bank
+  labels: { app: accounts, version: v1 }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: accounts, version: v1 }
+  template:
+    metadata:
+      labels: { app: accounts, version: v1 }
+    spec:
+      containers:
+        - name: accounts
+          image: tonanuvem/fiap-bank-accounts-otel:lab
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http-accounts, containerPort: 50051 }
+          envFrom:
+            - configMapRef: { name: fiap-bank-config }
+          env:
+            - { name: OTEL_SERVICE_NAME, value: accounts }
+          resources:
+            requests: { memory: 128Mi, cpu: 50m }
+            limits:   { memory: 512Mi, cpu: 500m }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounts
+  namespace: fiap-bank
+  labels: { app: accounts }
+spec:
+  selector: { app: accounts }
+  ports:
+    - { name: http-accounts, port: 50051, targetPort: 50051 }
+---
+# ----------------------------------------------------------------- transactions
+# O servico central do laboratorio: e' nele que a aula 2 injetou lentidao e
+# erro por variavel de ambiente, e e' nele que a aula 3 vai injetar os mesmos
+# sintomas PELA MALHA, sem tocar no container. Ter as duas formas no mesmo
+# servico e' o que permite a comparacao.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transactions-v1
+  namespace: fiap-bank
+  labels: { app: transactions, version: v1 }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: transactions, version: v1 }
+  template:
+    metadata:
+      labels: { app: transactions, version: v1 }
+    spec:
+      containers:
+        - name: transactions
+          image: tonanuvem/fiap-bank-transactions-otel:lab
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http-transactions, containerPort: 50052 }
+          envFrom:
+            - configMapRef: { name: fiap-bank-config }
+          env:
+            - { name: OTEL_SERVICE_NAME, value: transactions }
+            # v1 e' a linha de base saudavel: sem atraso, sem falha.
+            - { name: APP_VERSION,          value: "1.0.0" }
+            - { name: ATRASO_ARTIFICIAL_MS, value: "0" }
+            - { name: ATRASO_JITTER_MS,     value: "0" }
+            - { name: FALHA_ARTIFICIAL_PCT, value: "0" }
+          resources:
+            requests: { memory: 128Mi, cpu: 50m }
+            limits:   { memory: 512Mi, cpu: 500m }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transactions
+  namespace: fiap-bank
+  labels: { app: transactions }
+spec:
+  # ATENCAO: o selector tem SO "app", sem "version". E' isso que faz o Service
+  # enxergar v1 e v2 ao mesmo tempo e permite ao Istio dividir a carga entre
+  # os dois subsets. Se voce acrescentar version aqui, o canary para de
+  # funcionar e o VirtualService passa a rotear 100% para um lado so'.
+  selector: { app: transactions }
+  ports:
+    - { name: http-transactions, port: 50052, targetPort: 50052 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loan
+  namespace: fiap-bank
+  labels: { app: loan, version: v1 }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: loan, version: v1 }
+  template:
+    metadata:
+      labels: { app: loan, version: v1 }
+    spec:
+      containers:
+        - name: loan
+          image: tonanuvem/fiap-bank-loan-otel:lab
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http-loan, containerPort: 50053 }
+          envFrom:
+            - configMapRef: { name: fiap-bank-config }
+          env:
+            - { name: OTEL_SERVICE_NAME, value: loan }
+          resources:
+            requests: { memory: 128Mi, cpu: 50m }
+            limits:   { memory: 512Mi, cpu: 500m }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loan
+  namespace: fiap-bank
+  labels: { app: loan }
+spec:
+  selector: { app: loan }
+  ports:
+    - { name: http-loan, port: 50053, targetPort: 50053 }
