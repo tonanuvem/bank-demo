@@ -12,7 +12,7 @@
 # -----------------------------------------------------------------------------
 # DUAS OPCOES, e a diferenca importa
 # -----------------------------------------------------------------------------
-#   carga-fundo (ligada por padrao)
+#   stress-carga (ligada por padrao)
 #       curl em laco. Nenhuma imagem para construir, sobe em segundos.
 #       Exercita login -> contas -> extrato: passa por customer-auth,
 #       dashboard, accounts, transactions e mongodb. Suficiente para o
@@ -24,13 +24,13 @@
 #       com transferencia acima do saldo, emprestimo negado e FALHA_PCT.
 #       Exige publicar a imagem uma vez (comando abaixo).
 #
-# Para o roteiro como esta escrito, carga-fundo basta. Use o locust se quiser
+# Para o roteiro como esta escrito, stress-carga basta. Use o locust se quiser
 # os mesmos numeros de negocio das aulas anteriores lado a lado.
 # =============================================================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: carga-fundo
+  name: stress-carga
   namespace: fiap-bank
 data:
   carga.sh: |
@@ -119,19 +119,19 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: carga-fundo
+  name: stress-carga
   namespace: fiap-bank
-  labels: { app: carga-fundo, version: v1 }
+  labels: { app: stress-carga, version: v1 }
 spec:
   # 3 replicas em vez de 1: com uma so', uma pausa de rede vira um buraco no
   # grafico e o Davis pode interpretar como anomalia. Tres dao um fluxo
   # continuo o bastante para a linha de base ficar estavel.
   replicas: 3
   selector:
-    matchLabels: { app: carga-fundo }
+    matchLabels: { app: stress-carga }
   template:
     metadata:
-      labels: { app: carga-fundo, version: v1 }
+      labels: { app: stress-carga, version: v1 }
     spec:
       containers:
         - name: carga
@@ -146,7 +146,7 @@ spec:
             limits:   { memory: 64Mi, cpu: 100m }
       volumes:
         - name: script
-          configMap: { name: carga-fundo }
+          configMap: { name: stress-carga }
 ---
 # -----------------------------------------------------------------------------
 # LOCUST -- os cenarios de negocio das aulas 1 e 2

@@ -193,7 +193,12 @@ kubectl apply -f "$BASE/app/50-transactions-v2.yaml"
 # A carga sobe JUNTO, nao depois. O Davis precisa de 30-40 min de linha de
 # base antes do game day; se ela so' comecar na hora do caos, nao ha baseline
 # e nenhum problema e' aberto.
-kubectl apply -f "$BASE/app/90-carga.yaml"
+# O gerador de carga ja' se chamou carga-fundo. Um rename em Kubernetes nao
+# renomeia nada: cria um objeto novo e deixa o antigo no ar, gerando carga em
+# paralelo -- o dobro de trafego na linha de base, e dois nos no Kiali para a
+# mesma coisa. Removemos o antigo, se ainda existir.
+kubectl -n "$NS" delete deploy,configmap carga-fundo --ignore-not-found >/dev/null 2>&1
+kubectl apply -f "$BASE/app/90-stress-carga.yaml"
 
 if [ "$COM_ISTIO" = 1 ]; then
     titulo "3/4  MALHA"
@@ -214,7 +219,7 @@ fi
 
 titulo "4/4  AGUARDANDO OS PODS"
 echo "  (o primeiro deploy baixa ~7 imagens; de 2 a 5 min)"
-for d in mongodb accounts transactions-v1 transactions-v2 loan customer-auth atm-locator dashboard ui carga-fundo; do
+for d in mongodb accounts transactions-v1 transactions-v2 loan customer-auth atm-locator dashboard ui stress-carga; do
     if kubectl -n "$NS" rollout status "deploy/$d" --timeout=240s >/dev/null 2>&1; then
         echo "  ok    $d"
     else
@@ -280,10 +285,10 @@ mostrar_urls
 # cat <<EOF
 #   PROXIMOS PASSOS
 #
-#   1. A carga ja' esta rodando (deployment carga-fundo, 3 replicas).
+#   1. A carga ja' esta rodando (deployment stress-carga, 3 replicas).
 #      Confira que ela esta gerando trafego de verdade:
 #
-#        kubectl -n $NS logs -l app=carga-fundo --tail=5
+#        kubectl -n $NS logs -l app=stress-carga --tail=5
 #        kubectl -n $NS get pods
 #
 #   2. Instale o Dynatrace:  cat k8s/dynatrace/README.md

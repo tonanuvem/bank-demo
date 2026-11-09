@@ -58,7 +58,7 @@ para uma instituição financeira.
 | Subir a aplicação | `bash k8s/run-lab-k8s.sh` |
 | Instalar o Dynatrace | `k8s/dynatrace/README.md` |
 | **Republicar a imagem da UI** | **uma vez**, antes da primeira aula — ver abaixo |
-| **Carga** | sobe junto com o `run-lab-k8s.sh` (`k8s/app/90-carga.yaml`) — **confira que está rodando** |
+| **Carga** | sobe junto com o `run-lab-k8s.sh` (`k8s/app/90-stress-carga.yaml`) — **confira que está rodando** |
 | Conferir o sidecar | `kubectl -n fiap-bank get pods` — todo pod **2/2**, menos o `mongodb` (1/1 de propósito) |
 
 > **A imagem da UI precisa ser republicada uma vez.** O modo de origem única
@@ -83,9 +83,9 @@ para uma instituição financeira.
 > **O MongoDB sobe vazio.** O volume é `emptyDir`, então não há usuário, conta
 > nem extrato — ao contrário do compose das aulas 1 e 2, onde o Mongo roda na
 > máquina e os dados persistem. Quem cria o `teste@teste.com` e a conta
-> corrente é o próprio `carga-fundo`, no arranque. Se o login falhar com
+> corrente é o próprio `stress-carga`, no arranque. Se o login falhar com
 > *"Invalid email or password"*, veja se a carga subiu:
-> `kubectl -n fiap-bank logs -l app=carga-fundo --tail=20`.
+> `kubectl -n fiap-bank logs -l app=stress-carga --tail=20`.
 
 > **Convivência com o Bookinfo.** O script do ambiente instala o Bookinfo e o
 > Gateway dele já ocupa a porta 80 do `istio-ingressgateway` com `hosts: ["*"]`.
@@ -312,7 +312,7 @@ k8s/
 ├── istio/                     gateway, subsets, canary, caos, resiliência
 └── dynatrace/                 dynakube.yaml, instalação e consultas DQL
 
-A carga (`app/90-carga.yaml`) sobe junto com a aplicação: `curl` em laço,
+A carga (`app/90-stress-carga.yaml`) sobe junto com a aplicação: `curl` em laço,
 três réplicas, sem imagem para construir. Os cenários completos de negócio
 das aulas 1 e 2 (locust, com `FALHA_PCT`) estão comentados no mesmo arquivo —
 exigem publicar a imagem uma vez.
