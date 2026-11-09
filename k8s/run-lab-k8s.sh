@@ -98,6 +98,11 @@ kubectl apply -f "$BASE/app/30-node-services.yaml"
 kubectl apply -f "$BASE/app/40-dashboard-ui.yaml"
 kubectl apply -f "$BASE/app/50-transactions-v2.yaml"
 
+# A carga sobe JUNTO, nao depois. O Davis precisa de 30-40 min de linha de
+# base antes do game day; se ela so' comecar na hora do caos, nao ha baseline
+# e nenhum problema e' aberto.
+kubectl apply -f "$BASE/app/90-carga.yaml"
+
 if [ "$COM_ISTIO" = 1 ]; then
     titulo "3/4  MALHA"
     kubectl apply -f "$BASE/istio/00-gateway.yaml"
@@ -110,7 +115,7 @@ fi
 
 titulo "4/4  AGUARDANDO OS PODS"
 echo "  (o primeiro deploy baixa ~7 imagens; de 2 a 5 min)"
-for d in mongodb accounts transactions-v1 transactions-v2 loan customer-auth atm-locator dashboard ui; do
+for d in mongodb accounts transactions-v1 transactions-v2 loan customer-auth atm-locator dashboard ui carga-fundo; do
     if kubectl -n "$NS" rollout status "deploy/$d" --timeout=240s >/dev/null 2>&1; then
         echo "  ok    $d"
     else
@@ -150,15 +155,18 @@ mostrar_urls
 cat <<EOF
   PROXIMOS PASSOS
 
-  1. Gere carga ANTES de abrir o Dynatrace -- o Davis precisa de linha de
-     base para ter o que chamar de anomalia. Sem 30-40 min de historico
-     saudavel ele nao abre problema nenhum no game day:
+  1. A carga ja' esta rodando (deployment carga-fundo, 3 replicas).
+     Confira que ela esta gerando trafego de verdade:
 
-       kubectl -n $NS apply -f k8s/app/90-locust.yaml   (se estiver usando)
-       ou aponte o carga.sh do lab da aula 2 para a URL acima
+       kubectl -n $NS logs -l app=carga-fundo --tail=5
+       kubectl -n $NS get pods
 
   2. Instale o Dynatrace:  cat k8s/dynatrace/README.md
 
-  3. So' depois:           bash k8s/caos.sh status
+  3. DEIXE RODANDO 30-40 MINUTOS antes do game day. E' o tempo de que o
+     Davis precisa para saber como e' o normal deste sistema. Use esse
+     intervalo para os blocos 1 e 2 do roteiro (cluster e malha), que nao
+     dependem do Dynatrace.
 
-EOF
+  4. So' entao:  bash k8s/caos.sh status
+

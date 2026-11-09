@@ -57,7 +57,7 @@ para uma instituição financeira.
 | Criar o cluster e instalar o Istio | scripts do ambiente do LAB (`environment/config/{shift,eks}/`) — **outro repositório, não alterado aqui** |
 | Subir a aplicação | `bash k8s/run-lab-k8s.sh` |
 | Instalar o Dynatrace | `k8s/dynatrace/README.md` |
-| **Ligar a carga** | ver abaixo — **não pule** |
+| **Carga** | sobe junto com o `run-lab-k8s.sh` (`k8s/app/90-carga.yaml`) — **confira que está rodando** |
 
 > **A carga precisa rodar ANTES.** O Davis constrói linha de base: sem 30–40
 > minutos de comportamento saudável ele não tem o que chamar de anomalia, e o
@@ -264,6 +264,11 @@ k8s/
 ├── app/                       manifests do FIAP Bank (00 a 50)
 ├── istio/                     gateway, subsets, canary, caos, resiliência
 └── dynatrace/                 dynakube.yaml, instalação e consultas DQL
+
+A carga (`app/90-carga.yaml`) sobe junto com a aplicação: `curl` em laço,
+três réplicas, sem imagem para construir. Os cenários completos de negócio
+das aulas 1 e 2 (locust, com `FALHA_PCT`) estão comentados no mesmo arquivo —
+exigem publicar a imagem uma vez.
 ```
 
 **Status: nada disto foi executado contra um cluster.** Os manifests e scripts

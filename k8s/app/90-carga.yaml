@@ -1,0 +1,163 @@
+# =============================================================================
+# CARGA -- sem ela o laboratorio nao funciona
+# =============================================================================
+# Nao e' um detalhe de conveniencia: o Davis constroi LINHA DE BASE. Sem 30 a
+# 40 minutos de comportamento saudavel gravado, ele nao tem contra o que
+# comparar e NAO ABRE PROBLEMA NENHUM no game day do bloco 4. A aula inteira
+# depende deste arquivo estar no ar desde o comeco.
+#
+# Por isso os blocos 1 e 2 do roteiro nao tocam no Dynatrace: eles existem
+# tambem para dar tempo ao baseline.
+#
+# -----------------------------------------------------------------------------
+# DUAS OPCOES, e a diferenca importa
+# -----------------------------------------------------------------------------
+#   carga-fundo (ligada por padrao)
+#       curl em laco. Nenhuma imagem para construir, sobe em segundos.
+#       Exercita login -> contas -> extrato: passa por customer-auth,
+#       dashboard, accounts, transactions e mongodb. Suficiente para o
+#       baseline do Davis, para o Service Map ficar povoado e para as
+#       metricas de infraestrutura.
+#
+#   locust (comentada)
+#       Os cenarios de negocio DE VERDADE -- os mesmos .py das aulas 1 e 2,
+#       com transferencia acima do saldo, emprestimo negado e FALHA_PCT.
+#       Exige publicar a imagem uma vez (comando abaixo).
+#
+# Para o roteiro como esta escrito, carga-fundo basta. Use o locust se quiser
+# os mesmos numeros de negocio das aulas anteriores lado a lado.
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: carga-fundo
+  namespace: fiap-bank
+data:
+  carga.sh: |
+    #!/bin/sh
+    # Jornada minima, em laco: autentica, lista contas, pede extrato.
+    # Os enderecos sao os Services do cluster -- esta carga roda DENTRO da
+    # malha, entao ela tambem aparece no Kiali e no Service Map.
+    AUTH="http://customer-auth:8000/api/users"
+    DASH="http://dashboard:5000"
+    EMAIL="${EMAIL:-teste@teste.com}"
+    SENHA="${SENHA:-Teste@123}"
+    PAUSA="${PAUSA:-2}"
+
+    echo "[carga] iniciando -- pausa de ${PAUSA}s entre ciclos"
+    while true; do
+      # 1. login (customer-auth -> mongodb)
+      curl -s -m 10 -o /dev/null -X POST "$AUTH/auth" \
+           -H 'Content-Type: application/json' \
+           -d "{\"email\":\"$EMAIL\",\"password\":\"$SENHA\"}"
+
+      # 2. contas do cliente (dashboard -> accounts -> mongodb)
+      curl -s -m 10 -o /dev/null -X POST "$DASH/account/get-all-accounts" \
+           -H 'Content-Type: application/json' \
+           -d "{\"email\":\"$EMAIL\"}"
+
+      # 3. extrato (dashboard -> transactions -> mongodb)
+      #    E' o caminho que o game day vai degradar. Sem esta chamada o
+      #    servico transactions fica ocioso e nao ha o que observar.
+      curl -s -m 10 -o /dev/null -X POST "$DASH/transaction/get-transactions" \
+           -H 'Content-Type: application/json' \
+           -d "{\"email\":\"$EMAIL\"}"
+
+      sleep "$PAUSA"
+    done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carga-fundo
+  namespace: fiap-bank
+  labels: { app: carga-fundo, version: v1 }
+spec:
+  # 3 replicas em vez de 1: com uma so', uma pausa de rede vira um buraco no
+  # grafico e o Davis pode interpretar como anomalia. Tres dao um fluxo
+  # continuo o bastante para a linha de base ficar estavel.
+  replicas: 3
+  selector:
+    matchLabels: { app: carga-fundo }
+  template:
+    metadata:
+      labels: { app: carga-fundo, version: v1 }
+    spec:
+      containers:
+        - name: carga
+          image: curlimages/curl:8.11.1
+          command: ["/bin/sh", "/script/carga.sh"]
+          env:
+            - { name: PAUSA, value: "2" }
+          volumeMounts:
+            - { name: script, mountPath: /script }
+          resources:
+            requests: { memory: 16Mi, cpu: 10m }
+            limits:   { memory: 64Mi, cpu: 100m }
+      volumes:
+        - name: script
+          configMap: { name: carga-fundo }
+---
+# -----------------------------------------------------------------------------
+# LOCUST -- os cenarios de negocio das aulas 1 e 2
+# -----------------------------------------------------------------------------
+# A imagem NAO esta publicada: o publicar-imagens.sh exclui o locust de
+# proposito (o carga-locust.sh do lab do Splunk procura pelo nome literal
+# "fiap-bank-locust" e renomear quebraria aquele laboratorio).
+#
+# Publique uma vez, do seu proprio repositorio:
+#
+#   cd ~/bank-demo
+#   docker build -t tonanuvem/fiap-bank-locust:lab ./performance_locust
+#   docker push tonanuvem/fiap-bank-locust:lab
+#
+# Depois descomente o bloco abaixo e aplique este arquivo de novo.
+#
+# O ENTRYPOINT da imagem e' `sleep infinity` -- quem dispara os cenarios e' o
+# command abaixo, que repete a sequencia do locust.sh indefinidamente.
+#
+# FALHA_PCT e' a mesma variavel da aula 2: percentual de operacoes que falham
+# de proposito (senha errada no auth, transferencia acima do saldo no
+# transaction). Deixe em 0 durante o baseline -- o game day fornece as falhas.
+#
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: locust
+#   namespace: fiap-bank
+#   labels: { app: locust, version: v1 }
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels: { app: locust }
+#   template:
+#     metadata:
+#       labels: { app: locust, version: v1 }
+#     spec:
+#       containers:
+#         - name: locust
+#           image: tonanuvem/fiap-bank-locust:lab
+#           workingDir: /service
+#           command: ["/bin/sh", "-c"]
+#           args:
+#             - |
+#               while true; do
+#                 for c in auth atm account transaction loan; do
+#                   locust -f ${c}_locust.py --headless \
+#                          -u ${USUARIOS:-5} -r 1 --run-time ${DURACAO:-60s} || true
+#                   sleep 2
+#                 done
+#               done
+#           env:
+#             - { name: USUARIOS, value: "5" }
+#             - { name: DURACAO,  value: "60s" }
+#             - { name: FALHA_PCT, value: "0" }
+#             # DNS do cluster, nao localhost -- o locust roda DENTRO da malha.
+#             - { name: VITE_USERS_URL,    value: "http://customer-auth:8000/api/users" }
+#             - { name: VITE_ATM_URL,      value: "http://atm-locator:8001/api/atm" }
+#             - { name: VITE_ACCOUNTS_URL, value: "http://dashboard:5000/account" }
+#             - { name: VITE_TRANSFER_URL, value: "http://dashboard:5000/transaction" }
+#             - { name: VITE_LOAN_URL,     value: "http://dashboard:5000/loan" }
+#           resources:
+#             requests: { memory: 128Mi, cpu: 100m }
+#             limits:   { memory: 512Mi, cpu: 500m }
