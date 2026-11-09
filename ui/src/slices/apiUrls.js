@@ -24,16 +24,35 @@
  * 5000 e recebendo erro de CORS de qualquer processo que estivesse la'.
  */
 
+/*
+ * MODO ORIGEM UNICA (window.__FIAP_API__.base)
+ *
+ * Em Kubernetes atras do Istio nao da' para repetir o esquema de tres portas:
+ * NodePort so' abre de 30000 para cima, entao `host:8000` simplesmente nao
+ * existe do lado de fora do cluster. Tudo entra por UMA porta do
+ * istio-ingressgateway e o CAMINHO decide o destino -- o roteamento esta em
+ * k8s/istio/00-gateway.yaml.
+ *
+ * Quando `base` vem vazia (docker-compose das aulas 1 e 2), nada muda: as
+ * URLs continuam sendo montadas com as portas de sempre.
+ */
 const HOST = window.location.hostname;
 const PROTOCOL = window.location.protocol;
 const PORTA_DASHBOARD =
   (typeof window !== "undefined" && window.__FIAP_API__?.dashboard) || 5000;
+const BASE =
+  (typeof window !== "undefined" && window.__FIAP_API__?.base) || "";
 
-const VITE_USERS_URL = `${PROTOCOL}//${HOST}:8000/api/users/`;
-const VITE_ATM_URL = `${PROTOCOL}//${HOST}:8001/api/atm/`;
-const VITE_ACCOUNTS_URL = `${PROTOCOL}//${HOST}:${PORTA_DASHBOARD}/account/`;
-const VITE_TRANSFER_URL = `${PROTOCOL}//${HOST}:${PORTA_DASHBOARD}/transaction/`;
-const VITE_LOAN_URL = `${PROTOCOL}//${HOST}:${PORTA_DASHBOARD}/loan/`;
+// Sem BASE: uma origem por porta (compose). Com BASE: uma origem so' (k8s).
+const ORIGEM_AUTH = BASE || `${PROTOCOL}//${HOST}:8000`;
+const ORIGEM_ATM = BASE || `${PROTOCOL}//${HOST}:8001`;
+const ORIGEM_DASH = BASE || `${PROTOCOL}//${HOST}:${PORTA_DASHBOARD}`;
+
+const VITE_USERS_URL = `${ORIGEM_AUTH}/api/users/`;
+const VITE_ATM_URL = `${ORIGEM_ATM}/api/atm/`;
+const VITE_ACCOUNTS_URL = `${ORIGEM_DASH}/account/`;
+const VITE_TRANSFER_URL = `${ORIGEM_DASH}/transaction/`;
+const VITE_LOAN_URL = `${ORIGEM_DASH}/loan/`;
 
 const ApiUrls = {
   VITE_USERS_URL,
