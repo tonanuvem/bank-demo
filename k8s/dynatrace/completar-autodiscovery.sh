@@ -99,21 +99,46 @@ fi
 #    token de plataforma que carrega os escopos storage:*, que sao os que o
 #    endpoint OTLP exige.
 if [ "$CORRIGIR_TOKEN" = 1 ]; then
-    titulo "CORRIGINDO O TOKEN DE INGESTAO"
-    if [ -z "${DT_PLATFORM_TOKEN:-}" ]; then
-        aviso "DT_PLATFORM_TOKEN nao esta no ambiente."
-        aviso "e' a mesma variavel que a tela de Auto Discovery mandou exportar:"
-        aviso "  export DT_PLATFORM_TOKEN=\"dt0s16...\""
-        exit 1
-    fi
+    titulo "TOKEN DE INGESTAO"
     SECRET=$(kubectl -n "$NS" get dynakube "$DK_AGENTES" -o jsonpath='{.spec.tokens}' 2>/dev/null)
     [ -z "$SECRET" ] && SECRET="$DK_AGENTES"
-    echo "  secret: $SECRET  (chave dataIngestToken)"
+
+    # Antes de trocar, olhe o que ja' esta la'. O prefixo diz o TIPO:
+    #   dt0s16.  token de plataforma (escopos storage:*, openPipeline:*, ...)
+    #   dt0c01.  token de API classico (escopos metrics.ingest, logs.ingest, ...)
+    TIPO=$(kubectl -n "$NS" get secret "$SECRET" -o jsonpath='{.data.dataIngestToken}' 2>/dev/null \
+           | base64 -d 2>/dev/null | cut -c1-7)
+    echo "  secret: $SECRET  (chave dataIngestToken, tipo $TIPO)"
+
+    if [ "$TIPO" = "dt0s16." ]; then
+        echo
+        echo "  JA' E' UM TOKEN DE PLATAFORMA. Trocar por outro do mesmo tipo"
+        echo "  nao resolve: o que falta nao e' o tipo, e' o ESCOPO."
+        echo
+        echo "  No Dynatrace, em Settings -> Platform tokens, edite este token"
+        echo "  (ou crie outro) com os escopos que o proprio erro nomeia:"
+        echo "      storage:internal:write      <- traces, e' o 403"
+        echo "      openTelemetryTrace.ingest"
+        echo "      metrics.ingest"
+        echo "      logs.ingest"
+        echo
+        echo "  Depois, com o token novo em maos:"
+        echo "      kubectl -n $NS patch secret $SECRET --type=merge \\"
+        echo "        -p '{\"stringData\":{\"dataIngestToken\":\"dt0s16...\"}}'"
+        echo "      kubectl -n $NS rollout restart $COLETOR"
+        exit 0
+    fi
+
+    if [ -z "${DT_PLATFORM_TOKEN:-}" ]; then
+        aviso "o token atual e' do tipo $TIPO e DT_PLATFORM_TOKEN nao esta no ambiente."
+        aviso "e' a mesma variavel que a tela de Auto Discovery mandou exportar."
+        exit 1
+    fi
     if kubectl -n "$NS" patch secret "$SECRET" --type=merge \
          -p "{\"stringData\":{\"dataIngestToken\":\"$DT_PLATFORM_TOKEN\"}}" >/dev/null 2>&1; then
-        echo "  token substituido"
+        echo "  token de plataforma aplicado no lugar do $TIPO"
         [ -n "$COLETOR" ] && kubectl -n "$NS" rollout restart "$COLETOR" >/dev/null 2>&1 \
-            && echo "  coletor reiniciado -- confira o descarte daqui a 1 min rodando este script de novo"
+            && echo "  coletor reiniciado -- rode este script de novo daqui a 1 min"
     else
         aviso "nao consegui alterar o secret $SECRET."
     fi
