@@ -42,6 +42,20 @@ EOF
 
 erro() { echo "  ERRO: $*" >&2; exit 1; }
 
+# ENSAIO SEM INJETAR NADA.
+#   CAOS_DRY_RUN=1 bash k8s/caos.sh delay 7s 50
+# O manifesto e' montado igual e enviado ao servidor com --dry-run=server: o
+# Istio valida contra o CRD de verdade e devolve o erro, se houver, mas nada
+# e' gravado e nenhuma falha e' injetada. Serve para ensaiar a aula sem sujar
+# a linha de base que o Davis esta' gravando.
+enviar() {   # enviar [args do kubectl apply]
+    if [ -n "${CAOS_DRY_RUN:-}" ]; then
+        kubectl apply --dry-run=server "$@"
+    else
+        kubectl apply "$@"
+    fi
+}
+
 checar_cluster() {
     kubectl get ns "$NS" >/dev/null 2>&1 \
         || erro "namespace $NS nao existe. Rode antes: bash k8s/run-lab-k8s.sh"
@@ -99,7 +113,7 @@ aplicar() {
         echo "          weight: $PESO_V2"
         [ -n "$bloco_falha" ] && echo "$bloco_falha"
         [ -n "$bloco_retry" ] && echo "$bloco_retry"
-    } | kubectl apply -f - >/dev/null || erro "kubectl apply falhou"
+    } | enviar -f - >/dev/null || erro "kubectl apply falhou"
 
     salvar
 }
@@ -238,7 +252,7 @@ cmd_resiliencia() {
     checar_cluster
     case "${1:-}" in
       on)
-        kubectl apply -f "$(dirname "${BASH_SOURCE[0]}")/istio/40-resiliencia.yaml" >/dev/null \
+        enviar -f "$(dirname "${BASH_SOURCE[0]}")/istio/40-resiliencia.yaml" >/dev/null \
             || erro "kubectl apply falhou"
         cat <<EOF
 
@@ -253,7 +267,7 @@ cmd_resiliencia() {
 EOF
         ;;
       off)
-        kubectl apply -f "$(dirname "${BASH_SOURCE[0]}")/istio/10-transactions-subsets.yaml" >/dev/null \
+        enviar -f "$(dirname "${BASH_SOURCE[0]}")/istio/10-transactions-subsets.yaml" >/dev/null \
             || erro "kubectl apply falhou"
         echo; echo "  Circuit breaker desligado (DestinationRule voltou ao basico)."; echo
         ;;
@@ -265,7 +279,7 @@ cmd_limpar() {
     checar_cluster
     TIPO_FALHA=""; VALOR_FALHA=""; PCT_FALHA="0"; PESO_V2="0"; RETRY="off"
     aplicar
-    kubectl apply -f "$(dirname "${BASH_SOURCE[0]}")/istio/10-transactions-subsets.yaml" >/dev/null 2>&1
+    enviar -f "$(dirname "${BASH_SOURCE[0]}")/istio/10-transactions-subsets.yaml" >/dev/null 2>&1
     cat <<EOF
 
   MALHA LIMPA -- 100% v1, sem falha, sem retry, sem circuit breaker
