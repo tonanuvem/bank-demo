@@ -98,8 +98,53 @@ fi
 #    terminal; reaproveitamos esse mesmo token em vez de gerar outro. E' o
 #    token de plataforma que carrega os escopos storage:*, que sao os que o
 #    endpoint OTLP exige.
+# Testa um token contra o endpoint OTLP do tenant SEM alterar nada. Corpo
+# vazio de proposito: o que interessa e' o codigo de autorizacao, nao o
+# conteudo. 401/403 = token sem escopo; 400 = token aceito e payload
+# invalido, que para este teste e' sucesso.
+testar_token() {   # testar_token <ambiente> <token>
+    local amb="${1%/}" tok="$2" codigo
+    amb="${amb%/api}"
+    # O Auto Discovery exporta DT_ENVIRONMENT com o dominio .apps, que e' a
+    # interface; a ingestao vive no .live. Sem esta troca o teste bate numa
+    # URL que nao existe e devolve 404, parecendo problema de token.
+    amb="${amb/.apps.dynatrace.com/.live.dynatrace.com}"
+    codigo=$(curl -s -o /dev/null -m 20 -w '%{http_code}' -X POST \
+        "$amb/api/v2/otlp/v1/traces" \
+        -H "Authorization: Api-Token $tok" \
+        -H "Content-Type: application/x-protobuf" \
+        --data-binary '' 2>/dev/null)
+    echo "$codigo"
+}
+
 if [ "$CORRIGIR_TOKEN" = 1 ]; then
     titulo "TOKEN DE INGESTAO"
+
+    # Se o ambiente trouxer o par exportado pelo Auto Discovery, testamos o
+    # token ANTES de encostar no secret. Aplicar um token que tambem seria
+    # recusado so' troca um problema silencioso por outro.
+    if [ -n "${DT_PLATFORM_TOKEN:-}" ]; then
+        # O apiUrl do proprio DynaKube e' a fonte mais confiavel do endereco
+        # do tenant; DT_ENVIRONMENT entra como segunda opcao.
+        AMBIENTE=$(kubectl -n "$NS" get dynakube "$DK_AGENTES" -o jsonpath='{.spec.apiUrl}' 2>/dev/null)
+        [ -z "$AMBIENTE" ] && AMBIENTE="${DT_ENVIRONMENT:-}"
+        if [ -z "$AMBIENTE" ]; then
+            aviso "nao sei o endereco do tenant -- exporte DT_ENVIRONMENT."
+            exit 1
+        fi
+        CODIGO=$(testar_token "$AMBIENTE" "$DT_PLATFORM_TOKEN")
+        echo "  teste do DT_PLATFORM_TOKEN contra o endpoint OTLP: HTTP $CODIGO"
+        case "$CODIGO" in
+            400|200|204) echo "  o token E' ACEITO -- segue para aplicar no secret." ;;
+            401|403)
+                aviso "este token tambem seria recusado (HTTP $CODIGO)."
+                aviso "nao adianta aplicar: edite os escopos no Dynatrace antes."
+                aviso "  storage:internal:write / openTelemetryTrace.ingest / metrics.ingest / logs.ingest"
+                exit 1 ;;
+            000) aviso "nao consegui falar com $DT_ENVIRONMENT -- sem rede ou URL errada." ; exit 1 ;;
+            *)   aviso "resposta inesperada ($CODIGO); seguindo mesmo assim." ;;
+        esac
+    fi
     SECRET=$(kubectl -n "$NS" get dynakube "$DK_AGENTES" -o jsonpath='{.spec.tokens}' 2>/dev/null)
     [ -z "$SECRET" ] && SECRET="$DK_AGENTES"
 
