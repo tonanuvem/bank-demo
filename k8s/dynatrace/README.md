@@ -6,6 +6,34 @@
 > qualquer versão do material: quem tem o *Operator token* opera o agente no
 > cluster, e quem tem o *Data ingest* escreve no tenant.
 
+## 0. Dois caminhos de instalação — e qual usar na aula
+
+| Caminho | Custo | O que entrega |
+|---|---|---|
+| **Auto Discovery** (`dtwiz`, 4 linhas) | uma colagem | cluster monitorado, logs, code module em Python/Node, coletor OTLP |
+| Assistente *Add cluster* com Full-Stack | ~10 passos, 2 tokens novos, download de YAML | o mesmo, mais a camada de host e processo |
+| `dynakube.yaml` deste repo | tokens à mão | declarativo, versionado, conflita com os DynaKube do assistente |
+
+Com 25 alunos ao mesmo tempo, o **Auto Discovery** ganha: é uma colagem só, e
+as duas variáveis que ele exporta (`DT_ENVIRONMENT`, `DT_PLATFORM_TOKEN`)
+servem para o resto da configuração. Full-stack não precisa ser decidido na
+instalação: vira um `kubectl patch` depois.
+
+Mas o Auto Discovery para antes de três coisas, e as três só aparecem quando
+você procura o dado e ele não está lá. Depois dele, nesta ordem:
+
+```
+curl -s https://raw.githubusercontent.com/tonanuvem/k8s-exemplos/refs/heads/master/dynatrace-config.sh | bash
+bash k8s/dynatrace/completar-autodiscovery.sh
+```
+
+O primeiro ajusta AppArmor e ActiveGate no DynaKube principal. O segundo
+diagnostica o resto — token de ingestão sem escopo OTLP, injeção que não é
+retroativa, e a escolha de full-stack — e **por padrão não muda nada**: cada
+correção exige uma flag. Ver o cabeçalho do script.
+
+---
+
 ## 1. Conta
 
 `https://www.dynatrace.com/signup/` — trial de 15 dias.
