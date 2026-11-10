@@ -141,3 +141,98 @@ transformar uma pergunta em DQL — "latência p90 do transactions por versão n
 O interessante pedagogicamente não é ele acertar: é discutir o que você
 precisa saber para avaliar se a consulta que ele gerou responde mesmo à
 pergunta.
+
+---
+
+## 7. Prioridade: o que e' NOVIDADE e o que e' repeticao
+
+Medido no tenant depois de uma hora de carga. O criterio nao e' "o que o
+produto tem", e' **o que as aulas 1 e 2 nao fizeram**.
+
+### 7.0 Antes de tudo: metade da aplicacao esta invisivel em trace
+
+O Distributed Tracing mostra **so' `customer-auth` e `ui`** (~839 e ~132
+requisicoes). O Smartscape → Service dependency graph confirma: 2 services e
+1 frontend. `dashboard`, `accounts`, `transactions` e `loan` nao aparecem.
+
+Motivo: o code module do OneAgent instrumenta Node automaticamente, e **nao
+instrumenta Python**. Nos servicos Python a instrumentacao viria do
+OpenTelemetry -- que este laboratorio desliga de proposito
+(`OTEL_SDK_DISABLED: "true"` no `00-namespace.yaml`) para nao duplicar com o
+OneAgent. Em Node a decisao estava certa; em Python ela apaga tudo.
+
+Nos logs isso nao acontece: o DaemonSet de log monitoring le o stdout de
+qualquer container, e os workloads Python sao os que mais logam
+(`dashboard` 9K, `transactions-v1` 6K, `accounts` 5K).
+
+**Por que isso e' prioridade e nao detalhe:** o game day degrada o
+`transactions`, e a chamada `dashboard -> transactions` e' Python para
+Python. Sem instrumentacao, a evidencia central do bloco 4 nao existe em
+trace -- sobra log e metrica de Kubernetes.
+
+A correcao e' local, porque o proprio DynaKube ja' subiu um coletor OTLP:
+
+```
+kubectl -n dynatrace get svc telemetry-ingest
+# 4317/TCP (gRPC) e 4318/TCP (HTTP)
+```
+
+Nos Deployments Python (`accounts`, `transactions-v1`, `transactions-v2`,
+`loan`, `dashboard`), e **somente neles**:
+
+```yaml
+- { name: OTEL_SDK_DISABLED, value: "false" }
+- { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://telemetry-ingest.dynatrace:4317" }
+```
+
+Nos servicos Node (`customer-auth`, `atm-locator`) **nao** mexa: ali o
+OneAgent ja' instrumenta, e ligar o OTel junto duplica o trace.
+
+Isso vira conteudo, nao remendo: as tres aulas se encontram no mesmo ponto --
+o agente proprietario cobre as linguagens que ele cobre, e o resto entra por
+OpenTelemetry, que e' exatamente o que as aulas 1 e 2 usaram.
+
+### 7.1 Novidade de verdade — vale tempo de aula
+
+| Ordem | Tela | Por que e' novo | Pronto hoje? |
+|---|---|---|---|
+| 1 | **Problems** (Davis) | correlacao e causa raiz sem ninguem escrever regra. Nas aulas 1 e 2 todo alerta foi configurado a mao | so' com o caos |
+| 2 | **Site Reliability Guardian** | nao e' painel, e' **decisao**: aprova ou reprova uma versao. Nenhuma aula anterior teve um portao automatico | sim |
+| 3 | **Workflows** | fecha o laco: problema → acao. Observabilidade que *faz*, nao so' mostra | sim |
+| 4 | **Anomaly Detection** | limiar que se adapta ao padrao aprendido, contra o limiar fixo do Prometheus | sim |
+
+### 7.2 Novidade parcial — um minuto cada, de passagem
+
+- **Logs**: a faceta `k8s.workload.name` ja' vem com a contagem por workload
+  sem ninguem ter definido indice, label ou schema. O contraste com os labels
+  do Loki e os indices do Splunk se faz numa tela so'.
+- **Smartscape**: topologia descoberta sozinha. O Tempo da aula 2 ja' dava um
+  service graph; o que muda aqui e' descer ate' processo e host.
+
+### 7.3 Repeticao — comprima ou corte
+
+SLO (feito duas vezes), Dashboards (feito no Grafana), cascata de trace
+(feita com Tempo e com o APM do Splunk), busca de log (feita no Splunk e no
+Loki). Mostrar de novo gasta o tempo que falta nas quatro telas de cima.
+
+### 7.4 O fio de AIOps que amarra a aula
+
+**Detectar → decidir → agir.** As aulas 1 e 2 pararam em *ver*.
+
+1. **Detectar**: o Davis abre o problema sozinho (Problems)
+2. **Decidir**: o Guardian reprova a v2 contra objetivos escritos (SRG)
+3. **Agir**: o Workflow anota o pod, abre o ticket, dispara o rollback
+
+Se a aula couber em uma unica demonstracao, e' essa sequencia -- e ela so'
+funciona se Guardian e Workflow existirem **antes** do caos.
+
+### 7.5 Dois avisos vindos das telas
+
+- O app **Anomaly Detection** mostra o banner *"moved to Settings. The
+  current will be deprecated by the end of the year"*. Monte o detector pela
+  Settings, senao o material nasce apontando para uma tela que vai sumir.
+- Os templates do Guardian se dividem em *Lifecycle guardian (SDLC events)* e
+  *Business guardian (Business events)*. Para demonstrar hoje, **Kubernetes
+  namespace saturation** sobre o `fiap-bank` e' o que funciona sem nenhuma
+  integracao de pipeline; **Four golden signals** e' o que casa com o canary
+  do bloco 5.
