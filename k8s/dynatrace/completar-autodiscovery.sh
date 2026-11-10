@@ -7,10 +7,14 @@
 # tres coisas, e as tres so' aparecem quando voce vai procurar o dado e ele
 # nao esta la':
 #
-#   1. O token de ingestao nao tem escopo para OTLP. O coletor RECEBE os spans
-#      e e' recusado na entrega: "Access token is missing required scope. Use
-#      one of: [storage:internal:write]". Nenhum pod da aplicacao registra
-#      nada -- quem sabe que o dado foi jogado fora e' so' o coletor.
+#   1. O coletor RECEBE os spans e e' recusado na entrega pelo ActiveGate:
+#      403 em traces, 401 em metrics. Nenhum pod da aplicacao registra nada --
+#      quem sabe que o dado foi jogado fora e' so' o coletor.
+#      ATENCAO ao diagnostico: a mensagem fala em escopo de token
+#      ("storage:internal:write"), e nao era. Testado aqui, o MESMO token
+#      respondia 200 nos tres endpoints direto no tenant. A causa era a
+#      VERSAO DO ACTIVEGATE do DynaKube de agentes, varias versoes atras da
+#      do principal -- veja a secao de imagem abaixo.
 #   2. A injecao de code module NAO e' retroativa. Pod que ja' estava rodando
 #      quando o DynaKube ficou pronto continua sem instrumentacao, para
 #      sempre. A propria tela do assistente avisa isso em letra miuda.
@@ -33,12 +37,14 @@ set -uo pipefail
 
 NS=dynatrace
 CORRIGIR_TOKEN=0
+ALINHAR=0
 FULLSTACK=0
 REINJETAR=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --corrigir-token) CORRIGIR_TOKEN=1 ;;
+        --alinhar-imagem) ALINHAR=1 ;;
         --fullstack)      FULLSTACK=1 ;;
         --reinjetar)      REINJETAR="${2:-}"; shift ;;
         -h|--help)        sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -63,6 +69,20 @@ DK_AGENTES=$(kubectl -n "$NS" get dynakube \
     -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.oneAgent}{"\n"}{end}' 2>/dev/null \
     | awk 'NF>1 {print $1; exit}')
 [ -z "$DK_AGENTES" ] && aviso "nenhum DynaKube com oneAgent -- a aplicacao nao vai ter trace."
+
+# ---- as imagens de ActiveGate batem entre os DynaKube? ----------------------
+# O coletor OTLP entrega atraves do ActiveGate do DynaKube de agentes. Se esse
+# ActiveGate estiver numa versao mais velha que a do principal -- o que
+# acontece quando um script fixa a imagem so' do principal -- a entrega e'
+# recusada com uma mensagem que parece falar de token.
+titulo "IMAGENS DO ACTIVEGATE"
+kubectl -n "$NS" get dynakube -o jsonpath='{range .items[*]}  {.metadata.name}{" -> "}{.spec.activeGate.image}{"\n"}{end}' 2>/dev/null
+IMGS=$(kubectl -n "$NS" get dynakube -o jsonpath='{range .items[*]}{.spec.activeGate.image}{"\n"}{end}' 2>/dev/null | grep -v '^$' | sort -u | wc -l | tr -d ' ')
+if [ "${IMGS:-0}" -gt 1 ]; then
+    aviso "os DynaKube estao em versoes DIFERENTES de ActiveGate."
+    aviso "e' a causa mais provavel de descarte no coletor. Alinhe com:"
+    aviso "  bash $0 --alinhar-imagem"
+fi
 
 # ---- o coletor esta entregando ou descartando? ------------------------------
 titulo "COLETOR OTLP"
@@ -186,6 +206,26 @@ if [ "$CORRIGIR_TOKEN" = 1 ]; then
             && echo "  coletor reiniciado -- rode este script de novo daqui a 1 min"
     else
         aviso "nao consegui alterar o secret $SECRET."
+    fi
+fi
+
+# 1b. Alinha a imagem do ActiveGate do DynaKube de agentes com a do principal.
+if [ "$ALINHAR" = 1 ]; then
+    titulo "ALINHANDO A IMAGEM DO ACTIVEGATE"
+    DK_PRINCIPAL=$(kubectl -n "$NS" get dynakube \
+        -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.oneAgent}{"\n"}{end}' 2>/dev/null \
+        | awk 'NF==1 {print $1; exit}')
+    IMG=$(kubectl -n "$NS" get dynakube "$DK_PRINCIPAL" -o jsonpath='{.spec.activeGate.image}' 2>/dev/null)
+    if [ -z "$IMG" ]; then
+        aviso "o DynaKube principal nao tem imagem fixada -- nada para copiar."
+    else
+        echo "  copiando de $DK_PRINCIPAL para $DK_AGENTES:"
+        echo "    $IMG"
+        kubectl -n "$NS" patch dynakube "$DK_AGENTES" --type=merge \
+          -p "{\"spec\":{\"activeGate\":{\"image\":\"$IMG\"}}}" >/dev/null 2>&1 \
+          && echo "  aplicado -- aguarde o rollout e reinicie o coletor:" \
+          && echo "    kubectl -n $NS rollout status statefulset/${DK_AGENTES}-activegate" \
+          && echo "    kubectl -n $NS rollout restart statefulset/${DK_AGENTES}-otel-collector"
     fi
 fi
 

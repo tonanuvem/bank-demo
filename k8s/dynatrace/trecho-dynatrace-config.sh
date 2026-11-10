@@ -42,6 +42,36 @@ if [[ -z "$DK_AGENTES" ]]; then
 else
     echo "DynaKube de agentes: $DK_AGENTES"
 
+    # ---- 0. A MESMA imagem de ActiveGate nos dois DynaKube -------------------
+    # Esta e' a correcao que fecha o buraco do script original. Ele fixa a
+    # imagem do ActiveGate so' no DynaKube principal; o "-agents" fica com a
+    # imagem padrao, varias versoes atras -- e e' justamente o ActiveGate do
+    # "-agents" (capability routing) que o coletor OTLP atravessa para
+    # entregar os dados.
+    #
+    # Medido neste laboratorio: com 1.337.36 no "-agents" e 1.349.80 no
+    # principal, o coletor levava 403 (traces) e 401 (metrics) do ActiveGate
+    # e descartava tudo -- enquanto o MESMO token, testado direto contra o
+    # tenant, respondia 200 nos tres endpoints. Nao era escopo de token;
+    # era a versao do ActiveGate no caminho.
+    IMG_AGENTES=$(kubectl -n "$NAMESPACE" get dynakube "$DK_AGENTES" \
+                  -o jsonpath='{.spec.activeGate.image}' 2>/dev/null || true)
+    if [[ "$IMG_AGENTES" != "$AG_IMAGE" ]]; then
+        echo "Alinhando a imagem do ActiveGate de $DK_AGENTES"
+        echo "  de: ${IMG_AGENTES:-<padrao>}"
+        echo "  para: $AG_IMAGE"
+        kubectl -n "$NAMESPACE" patch dynakube "$DK_AGENTES" --type=merge \
+          -p "{\"spec\":{\"activeGate\":{\"image\":\"$AG_IMAGE\"}}}" || true
+        kubectl -n "$NAMESPACE" rollout status \
+          "statefulset/${DK_AGENTES}-activegate" --timeout="${TIMEOUT}s" || true
+        # O coletor so' volta a tentar depois de reiniciar: os dados ja'
+        # descartados nao voltam.
+        kubectl -n "$NAMESPACE" rollout restart \
+          "statefulset/${DK_AGENTES}-otel-collector" >/dev/null 2>&1 || true
+    else
+        echo "ActiveGate de $DK_AGENTES ja' esta na imagem fixada."
+    fi
+
     # ---- 2. full-stack, se pedido -------------------------------------------
     if [[ "$FULLSTACK" == "true" ]]; then
         MODO=$(kubectl -n "$NAMESPACE" get dynakube "$DK_AGENTES" \
@@ -90,14 +120,15 @@ else
           | sed 's/.*"otelcol.signal": "\([a-z]*\)".*"error": "\([^"]*\)".*"dropped_items": \([0-9]*\).*/    \1: \3 descartados -- \2/' \
           | cut -c1-180
         echo
-        echo "  Se o motivo citar 'storage:internal:write', o token de"
-        echo "  ingestao existe mas nao tem escopo. Confira o TIPO antes de"
-        echo "  trocar -- dt0s16. ja' e' token de plataforma, e trocar por"
-        echo "  outro do mesmo tipo nao resolve:"
-        echo "    kubectl -n $NAMESPACE get secret <secret> \\"
-        echo "      -o jsonpath='{.data.dataIngestToken}' | base64 -d | cut -c1-7"
-        echo "  O caminho e' editar os escopos do token no Dynatrace e so'"
-        echo "  entao atualizar o secret e reiniciar o coletor."
+        echo "  ANTES de culpar o token: o erro chega do ActiveGate, nao do"
+        echo "  tenant. Teste o mesmo token direto contra o tenant --"
+        echo "  200 nos tres endpoints significa que o token esta bom e o"
+        echo "  problema esta no caminho:"
+        echo "    AMB=\$(kubectl -n $NAMESPACE get dynakube $DK_AGENTES -o jsonpath='{.spec.apiUrl}' | sed 's#/api\$##')"
+        echo "    curl -s -o /dev/null -w '%{http_code}\\n' -X POST \$AMB/api/v2/otlp/v1/traces \\"
+        echo "      -H \"Authorization: Api-Token \$TOKEN\" --data-binary ''"
+        echo "  Se der 200, confira a imagem do ActiveGate do $DK_AGENTES."
+        echo "  Se der 401/403, ai' sim e' escopo de token."
     fi
 fi
 
