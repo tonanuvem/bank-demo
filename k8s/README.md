@@ -57,7 +57,7 @@ para uma instituição financeira.
 | Criar o cluster e instalar o Istio | scripts do ambiente do LAB (`environment/config/{shift,eks}/`) — **outro repositório, não alterado aqui** |
 | Subir a aplicação | `bash k8s/run-lab-k8s.sh` |
 | Instalar o Dynatrace | `k8s/dynatrace/README.md` |
-| Preparar as telas de AIOps | `k8s/dynatrace/telas.md` — **SLO, detector de anomalia, Guardian e Workflow precisam existir antes do game day** |
+| Preparar as telas de AIOps | `k8s/dynatrace/telas.md` — **Guardian e Workflow precisam existir antes do game day, e o Davis precisa da linha de base** |
 | **Republicar a imagem da UI** | **uma vez**, antes da primeira aula — ver abaixo |
 | **Carga** | sobe junto com o `run-lab-k8s.sh` (`k8s/app/90-stress-carga.yaml`) — **confira que está rodando** |
 | Conferir o sidecar | `kubectl -n fiap-bank get pods` — todo pod **2/2**, menos o `mongodb` (1/1 de propósito) |
@@ -189,15 +189,16 @@ real de *a malha quebrou a observabilidade*.
 
 ---
 
-## 3 · SLO e negócio — 25 min
+## 3 · Negócio e experiência — 25 min
 
-Recriar no Dynatrace **o mesmo SLO** da aula 1 (Splunk) e da aula 2 (Grafana).
-
-> `[PRINT: app Service-Level Objectives com o SLO da jornada de transferência]`
+> **O SLO saiu deste bloco de propósito.** Ele foi definido na aula 1 e
+> medido na aula 2; refazer no Dynatrace seria a terceira implementação do
+> mesmo contrato, e o tempo rende mais nas telas que as outras ferramentas
+> não tinham. Se quiser mesmo mostrar error budget queimando, crie o SLO
+> **antes** do game day — depois do caos ele não tem o que queimar.
 
 | Tela | Amarra com |
 |---|---|
-| Service-Level Objectives | o SLO do Splunk (aula 1) e o Error Budget do Grafana (aula 2) |
 | Business Flow | o "Business Health" perseguido desde o slide 1 da aula 1 |
 | Experience Vitals / Session Replay | a pergunta "sonda sintética ou RUM?" da aula 2 |
 | Synthetic monitoring | o `probe_success` do blackbox exporter |
@@ -216,10 +217,14 @@ bash k8s/caos.sh status
 bash k8s/caos.sh delay 7s 50      # lentidão: tudo responde 200
 ```
 
-Procure, nesta ordem: taxa de erro em **zero**, SLO de latência queimando,
-volume de transferências caindo, **log do pod limpo**.
+Procure, nesta ordem: taxa de erro em **zero**, latência subindo no
+Distributed Tracing, volume de transferências caindo, **log do pod limpo**.
 
-> `[PRINT: SLO de latência queimando enquanto o de disponibilidade segue verde]`
+> `[PRINT: Distributed Tracing com o p90 subindo enquanto o status segue 200]`
+
+A ausência de erro é o ponto: nas aulas 1 e 2 o reflexo treinado foi procurar
+exceção no log. Aqui não há nenhuma — a lentidão vem do sidecar, e a
+aplicação nem sabe que foi atrasada.
 
 ```bash
 bash k8s/caos.sh abort 503 20     # erro: 503 direto do Envoy
@@ -263,8 +268,9 @@ usuários de uma vez.
 3. 20% de usuários atingidos é preço aceitável para descobrir que a versão
    está ruim? **Qual seria esse número na B3?**
 
-Depois, o **Site Reliability Guardian** avaliando o canary contra o objetivo de
-SLO e barrando a promoção dos 80% restantes.
+Depois, o **Site Reliability Guardian** avaliando o canary contra os
+objetivos escritos — latência e taxa de erro do `transactions` — e barrando a
+promoção dos 80% restantes. Não é painel: é decisão.
 
 > `[PRINT: Site Reliability Guardian reprovando a validação da v2]`
 
@@ -309,7 +315,7 @@ anterior de pé.
 
 ## Se o tempo apertar
 
-Corte nesta ordem: bloco 3 (SLO — já foi visto duas vezes), depois a parte de
+Corte nesta ordem: bloco 3 (negócio e experiência), depois a parte de
 Workflow do bloco 5. **Não corte** o bloco 4: é o único momento em que o aluno
 investiga sem saber a resposta.
 
