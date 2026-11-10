@@ -102,17 +102,55 @@ data:
       esac
     }
 
+    # Espera os servicos atenderem antes de tentar criar qualquer coisa.
+    # Quando o laboratorio inteiro sobe de uma vez, esta carga nasce junto com
+    # o customer-auth: o registro do usuario leva 503, ninguem e' criado, e
+    # como o preparo rodava UMA VEZ, todo login seguinte respondia 400 para
+    # sempre -- a linha de base virava um muro de erro. Qualquer resposta HTTP
+    # serve como sinal de vida; 000/502/503/504 nao.
+    esperar_servicos() {
+      tentativa=0
+      while [ "$tentativa" -lt 60 ]; do
+        vivo=$(curl -s -o /dev/null -m 5 -w '%{http_code}' -X POST "$AUTH/auth" \
+               -H 'Content-Type: application/json' -d '{}')
+        case "$vivo" in
+          000|502|503|504) ;;
+          *) echo "[carga] servicos de pe (HTTP $vivo)"; return 0 ;;
+        esac
+        tentativa=$((tentativa + 1))
+        sleep 5
+      done
+      echo "[carga] servicos nao responderam em 5 min -- seguindo assim mesmo"
+    }
+
     echo "[carga] preparando dados (usuario e conta)"
+    esperar_servicos
     preparar
     descobrir_conta
     echo "[carga] conta=${CONTA:-nenhuma} -- pausa de ${PAUSA}s entre ciclos"
 
     CICLO=0
+    FALHAS=0
     while true; do
       # 1. login (customer-auth -> mongodb)
       chamar login -X POST "$AUTH/auth" \
              -H 'Content-Type: application/json' \
              -d "{\"email\":\"$EMAIL\",\"password\":\"$SENHA\"}"
+
+      # Login que falha quer dizer, quase sempre, usuario inexistente -- o
+      # banco deste lab e' emptyDir e nasce vazio. Em vez de repetir o erro
+      # ate' o fim da aula, refaz o preparo. No maximo a cada 15 ciclos, para
+      # nao transformar a recuperacao num segundo problema.
+      case "$CODIGO" in
+        2*) FALHAS=0 ;;
+        *)  FALHAS=$((FALHAS + 1))
+            if [ "$FALHAS" -ge 15 ]; then
+              echo "[carga] login falhando ($CODIGO) -- refazendo o preparo"
+              preparar
+              descobrir_conta
+              FALHAS=0
+            fi ;;
+      esac
 
       # 2. contas do cliente (dashboard -> accounts -> mongodb)
       chamar contas -X POST "$DASH/account/allaccounts" \
