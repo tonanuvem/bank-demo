@@ -4,10 +4,10 @@ Mapa dos `[PRINT: ...]` do `k8s/README.md` para a navegação real, com o que
 cada tela exige para ter dado dentro.
 
 > **A regra que organiza tudo:** as telas de AIOps não são *encontradas*, são
-> **preparadas**. O card do Davis aparece sozinho, mas SLO, detector de
-> anomalia, Guardian e Workflow precisam existir **antes** do caos — um SLO
-> criado depois não tem o que queimar, e um detector criado depois não tem
-> linha de base. A seção 4 lista o que montar antes do bloco 4 do roteiro.
+> **preparadas**. O card do Davis aparece sozinho, mas detector de anomalia,
+> Guardian e Workflow precisam existir **antes** do caos: um detector criado
+> depois não tem linha de base, e um Guardian criado depois não tem o "antes"
+> da comparação. A seção 4 tem os passos, na ordem de montagem.
 
 ---
 
@@ -41,8 +41,7 @@ infraestrutura e não os processos: é o caso de conferir
 | Workload `transactions` com `istio-proxy` | **Kubernetes** → Explorer → Workloads → `transactions-v1` → Containers | sidecar injetado |
 | Smartscape: aplicação → serviço → processo → host | **Smartscape** → Service dependency graph, começando em `transactions` | OneAgent nos processos |
 | Service flow da jornada | **Distributed Tracing** → filtro `k8s.namespace.name = fiap-bank` → um trace → **Service flow** | carga rodando |
-| SLO da jornada | **Service-Level Objectives** → o SLO que você criar (seção 4) | criado antes |
-| SLO de latência queimando, disponibilidade verde | mesma tela, durante `caos.sh delay` | SLO + caos |
+| p90 subindo com o status em 200 | **Distributed Tracing** → filtro `k8s.namespace.name = fiap-bank` → percentis, durante `caos.sh delay` | caos rodando |
 | Card do Davis com causa raiz | **Problems** → o problema aberto → Root cause | caos + linha de base |
 | p90 por versão, v1 e v2 | **Notebooks** ou **Dashboards**, com o DQL de `dql.md` | canary ligado |
 | Site Reliability Guardian reprovando a v2 | **Site Reliability Guardian** → execução do guardian | guardian criado antes |
@@ -103,19 +102,163 @@ aconteceu neste laboratório, não num slide.
 
 ## 4. O que montar ANTES do bloco 4
 
-Nesta ordem, durante os 30–40 minutos de linha de base:
+Três coisas, todas pela interface, nenhuma passando de cinco minutos de
+cliques. O que consome tempo aqui não é montar: é **esperar** a linha de base
+(4.4) — e é por isso que esta seção vem antes do bloco 4, não durante.
 
-1. **SLO de latência** da jornada de transferência — **Service-Level
-   Objectives** → *Create SLO*, sobre o serviço `transactions`. Sem ele, o
-   `caos.sh delay` não tem o que queimar, e o contraste com o SLO de
-   disponibilidade (que fica verde) é o ponto do bloco.
-2. **SLO de disponibilidade** do mesmo serviço — é o par que não queima.
-3. **Detector de anomalia** sobre a taxa de transações (3.2).
-4. **Site Reliability Guardian** com dois objetivos: taxa de erro e latência
-   do `transactions`. É ele que reprova a v2 no bloco 5.
-5. **Workflow** disparado por problema do Davis no namespace `fiap-bank`.
-   Mesmo que só anote num Notebook, o ponto é mostrar o laço fechado:
-   detecção → decisão → ação.
+O SLO saiu desta lista: a decisão e o motivo estão em 8.3. Se você mudar de
+ideia, ele precisa existir **antes** do caos, senão não há error budget
+gravado para queimar.
+
+A ordem não é arbitrária. Detector e Workflow só valem para frente, então vão
+primeiro; o Guardian vai por último, porque a primeira execução dele precisa
+de carga saudável já gravada para passar.
+
+### 4.1 Detector de anomalia sobre a taxa de transações
+
+**Por que este detector, e não só o Davis automático:** o `caos.sh delay`
+derruba o volume **sem gerar um único erro**. Taxa de erro em zero, log
+limpo, 200 em tudo. Quem percebe queda de volume é um detector sobre
+*contagem* — e esse você escolhe; o Davis não escolhe por você.
+
+**Monte pela Settings, não pelo app.** O app **Anomaly Detection** mostra o
+banner *"moved to Settings. The current will be deprecated by the end of the
+year"* (7.5) — material montado em cima dele aponta para uma tela que vai
+sumir. Mostre o app na aula se quiser, mas crie o detector aqui:
+
+1. **Settings** → *Anomaly detection* → *Custom events for alerting* →
+   *Create custom event for alerting*
+2. Métrica: procure `requestCount` no seletor e pegue
+   `builtin:service.requestCount.total`
+3. Filtre pelo **nome** do serviço `transactions`, não pelo ID da entidade —
+   o ID muda a cada recriação do lab, e aí o detector para de avaliar
+   qualquer coisa sem avisar
+4. Estratégia: **Auto-adaptive baseline**
+5. Direção: alertar quando o valor fica **abaixo** da linha de base. É a queda
+   que interessa; nos dois sentidos, a própria variação natural da carga alerta
+6. Deixe a métrica **dimensionada pelo serviço**: é o que faz o evento se
+   anexar à entidade. Sem isso o problema aparece solto — sem causa-raiz, sem
+   topologia e sem os *affected entities*, que são o assunto do bloco 4
+7. No *event template*, dê um título que o aluno leia sem tradução, ex.
+   *"Taxa de transações abaixo do padrão"*
+8. Salve e deixe **ligado**
+
+**O aviso que vem do laboratório:** limiar auto-adaptativo aprende de um
+período de referência de **dias**. Num lab criado na véspera da aula ele não
+tem o que aprender, e pode simplesmente não disparar no game day.
+
+Então monte os dois — e o problema vira material de aula:
+
+- o **auto-adaptativo** você cria para mostrar a tela e o conceito;
+- um segundo detector com limiar **estático** é o que de fato dispara. Meça
+  a taxa saudável e corte pela metade.
+
+Para medir, com a carga rodando limpa:
+
+```
+Notebooks → célula DQL
+
+timeseries req = sum(dt.service.request.count), by: { dt.entity.service }
+| fieldsAdd nome = entityName(dt.entity.service)
+| filter contains(nome, "transactions")
+```
+
+Se o nome da métrica não existir neste tenant, o autocomplete resolve: digite
+`dt.service.request` e veja o que ele oferece. O valor também está pronto em
+**Services** → `transactions` → *Requests per minute*.
+
+E o par de detectores é a aula inteira em duas linhas: o estático dispara
+sempre que o número cruza a linha — é literalmente o alerta do Prometheus da
+aula 2 — e o auto-adaptativo só dispara quando o número sai do padrão
+aprendido **para aquele horário**. A diferença não é sofisticação, é tempo de
+dado: sem história, o auto-adaptativo é pior que o estático.
+
+### 4.2 Site Reliability Guardian com dois objetivos
+
+É ele que reprova a v2 no bloco 5.
+
+1. App **Site Reliability Guardian** → *Create guardian*
+2. Template **Four golden signals**
+3. Em cada objetivo, troque a entidade pelo serviço `transactions`
+4. **Apague os dois objetivos que não interessam** (tráfego e saturação) e
+   fique com exatamente dois: **taxa de erro** e **latência**. Não é
+   economia — se o guardian reprovar por saturação, você perde a narrativa.
+   A reprovação tem que vir pelo motivo que você vai contar em voz alta
+5. Ajuste os dois limiares com a conta do canário, abaixo
+6. Salve como `transactions-v2`, nome que o aluno reconhece
+7. **Rode uma vez com a carga saudável: tem que passar.** É o "antes" da
+   comparação; se já reprovar aqui, o limiar está errado, não a aplicação
+8. No bloco 5, durante o `caos.sh canary 20`, rode de novo: tem que reprovar
+
+**A conta do canário — sem ela o guardian passa e o bloco 5 não acontece.**
+
+A v2 roda com `FALHA_ARTIFICIAL_PCT=15` e `ATRASO_ARTIFICIAL_MS=1400`. Com
+`canary 20`, só 20% do tráfego passa por ela — e v1 e v2 reportam o **mesmo**
+nome de serviço (`OTEL_SERVICE_NAME=transactions` nos dois arquivos), então o
+guardian avalia a média:
+
+- **taxa de erro:** 20% × 15% = **3%** no serviço. Um limiar de 5% passa
+  tranquilo. Use **1%**.
+- **latência:** 20% das requisições ficam ~1,4s mais lentas, logo o **p50 não
+  se move** e o **p90 sobe ~1,4s** — porque 20% é maior que os 10% do topo da
+  distribuição. Escolha **p90**, com limiar entre a linha de base medida e
+  ela + 1,4s. Linha de base abaixo de 500ms? 1s resolve.
+
+Esse detalhe é bom demais para passar batido: num `canary 5`, o p90 **não**
+pegaria a degradação e o p99 pegaria. O percentil que você escolhe decide se
+você enxerga um canário pequeno — e é a mesma razão pela qual o p50 do
+dashboard da aula 2 ficava verde.
+
+Se quiser a análise de canário de verdade, v1 contra v2 em vez da média,
+divida por `k8s.workload.name`: `transactions` e `transactions-v2` são
+Deployments separados, mesmo sendo um serviço só.
+
+**Risco conhecido, de 7.5:** os templates se dividem em *Lifecycle guardian
+(SDLC events)* e *Business guardian (Business events)*, e o **Four golden
+signals** é do primeiro grupo — pode pedir evento de pipeline que este lab não
+emite. Se os objetivos não encontrarem dado, troque para o template
+**Kubernetes namespace saturation** sobre o `fiap-bank`, que funciona sem
+integração nenhuma. Descubra isso na véspera, não no bloco 5.
+
+### 4.3 Workflow disparado por problema do Davis
+
+É a tela do laço fechado: detecção → decisão → ação, sem humano no meio.
+
+1. App **Workflows** → *Create workflow from template*
+2. Template **Auto-Annotate K8s Pods based on Problem Events**
+3. No gatilho (*Davis problem trigger*), restrinja ao namespace:
+   `matchesValue(k8s.namespace.name, "fiap-bank")`. O autocomplete do campo
+   confirma o nome exato do atributo neste tenant; se ele não oferecer
+   namespace, deixe o gatilho aberto — neste cluster o único outro app é o
+   Bookinfo, então o filtro é higiene, não necessidade
+4. Salve e **ligue** (workflow importado de template vem desligado)
+5. No game day, depois do card do Davis, mostre o outro lado — o cluster:
+
+```
+kubectl -n fiap-bank describe pod <pod> | grep -i annotation
+```
+
+O ponto não é a anotação. É o aluno ver uma decisão tomada e executada
+enquanto ele ainda estava lendo o problema.
+
+Se o workflow não tiver permissão para escrever no cluster, troque a ação por
+um *Run Javascript* que grava num Notebook: a demonstração do laço continua
+inteira, e sem depender de `kubectl` nenhum.
+
+### 4.4 A linha de base — a única parte que não se constrói clicando
+
+Se constrói **esperando**. O Davis precisa de 30 a 40 minutos de carga
+saudável gravada antes do caos; sem isso ele não tem contra o que comparar e
+não abre problema nenhum.
+
+Confira que a carga está limpa **antes** de começar a contar o tempo:
+
+```
+kubectl -n fiap-bank logs -l app=stress-carga --since=120s | grep -c HTTP
+```
+
+Zero é o número certo: a carga só registra o que não é 2xx. Se vier diferente
+de zero, o relógio da linha de base ainda não começou.
 
 ---
 
@@ -308,46 +451,23 @@ rodando. Nao ha o que criar:
 
 ### 8.2 Precisa construir — e e' pouco
 
-Tres coisas, todas pela interface, todas antes do game day.
+Tres coisas pela interface, mais uma que nao se constroi clicando.
 
-**a) Site Reliability Guardian** (tela 2 da aula)
+| O que | Para que serve na aula | Passos |
+|---|---|---|
+| **Detector de anomalia** sobre a taxa de transacoes | pega a queda de volume do `delay`, que nao gera erro nenhum | secao **4.1** |
+| **Site Reliability Guardian**, dois objetivos | reprova a v2 no bloco 5 | secao **4.2** |
+| **Workflow** por problema do Davis | fecha o laco: detecao -> decisao -> acao | secao **4.3** |
 
-1. App **Site Reliability Guardian** → *Create guardian*
-2. Na caixa de templates, escolha **Four golden signals**
-3. Em cada objetivo, troque a entidade pelo servico `transactions`
-4. Salve com um nome que o aluno reconheca, ex. `transactions-v2`
-5. Rode uma vez com a carga saudavel: tem que **passar**. Esse e' o
-   "antes" da comparacao
-6. No bloco 5, rode de novo durante o `caos.sh canary 20`: tem que **reprovar**
+Os passos ficam na secao 4, junto da ordem em que isso precisa ser montado --
+que importa: o Guardian so' passa na primeira execucao se a carga saudavel ja'
+estiver gravada.
 
-Se os objetivos do template nao encontrarem dado, use o template
-**Kubernetes namespace saturation** sobre o `fiap-bank` -- ele funciona sem
-nenhuma integracao de pipeline.
+A quarta coisa e' a que nao tem botao:
 
-**b) Workflow** (tela 3 da aula)
-
-1. App **Workflows** → *Create workflow from template*
-2. Escolha **Auto-Annotate K8s Pods based on Problem Events**
-3. No gatilho, restrinja ao namespace `fiap-bank`
-4. Salve e deixe ligado
-5. No game day, depois do card do Davis, mostre o resultado no cluster:
-   `kubectl -n fiap-bank describe pod <pod> | grep -i annotation`
-
-O ponto nao e' a anotacao em si: e' ver detecao virar acao sem humano.
-
-**c) Linha de base para o Davis** (tela 1 da aula)
-
-Nao se constroi clicando -- se constroi ESPERANDO. O Davis precisa de 30 a 40
-minutos de carga saudavel gravada antes do caos. Sem isso ele nao tem contra o
-que comparar e nao abre problema nenhum.
-
-Confira que a carga esta limpa antes de comecar a contar:
-
-```
-kubectl -n fiap-bank logs -l app=stress-carga --since=120s | grep -c HTTP
-```
-
-Zero e' o numero certo: a carga so' registra o que nao e' 2xx.
+**Linha de base.** 30 a 40 minutos de carga saudavel antes do caos. E' espera,
+nao configuracao, e e' o unico item desta lista que voce nao consegue fazer as
+pressas quando a aula ja' comecou. Detalhe e conferencia em **4.4**.
 
 ### 8.3 O que NAO precisa construir, ao contrario do que parece
 
@@ -356,8 +476,10 @@ Zero e' o numero certo: a carga so' registra o que nao e' 2xx.
 - **SLO**: so' e' necessario se voce quiser mostrar error budget queimando.
   Como isso ja' foi feito no Splunk e no Grafana, fica fora -- mas entao nao
   prometa a tela de SLO queimando no roteiro.
-- **Detector de anomalia**: o Davis ja' detecta sozinho. Um detector proprio
-  so' entra se voce quiser falar de limiar auto-adaptativo.
+- **Detector de anomalia**: parece dispensavel -- "o Davis detecta sozinho" --
+  e nao e'. O Davis automatico olha erro, latencia e saturacao; o `caos.sh
+  delay` derruba o VOLUME sem gerar erro algum. Essa queda so' tem quem a veja
+  se existir um detector sobre contagem, e esse voce escolhe. Passos em 4.1.
 
 ### 8.4 Se o Davis nao abrir problema no game day
 
