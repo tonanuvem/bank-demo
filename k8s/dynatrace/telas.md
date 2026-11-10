@@ -192,6 +192,47 @@ Isso vira conteudo, nao remendo: as tres aulas se encontram no mesmo ponto --
 o agente proprietario cobre as linguagens que ele cobre, e o resto entra por
 OpenTelemetry, que e' exatamente o que as aulas 1 e 2 usaram.
 
+#### E por que nao jogar TUDO no OpenTelemetry, inclusive o Node?
+
+E' uma escolha defensavel, nao um erro -- mas tem preco, e o preco e' maior
+do que parece.
+
+**Nao basta ligar a variavel.** O code module do OneAgent injeta em processo
+Node sempre que esta presente no pod. Ligar o SDK OTel junto coloca dois
+agentes no mesmo processo: span duplicado, dois contextos de trace e metrica
+inflada. Para ir de OTel puro em Node e' preciso EXCLUIR aqueles pods da
+injecao (`dynatrace.com/inject: "false"`), e ai' comeca a lista de perdas.
+
+**O que se perde ao tirar o OneAgent do Node, neste laboratorio:**
+
+- a entidade de frontend que aparece no Smartscape ("My web application")
+  existe porque o OneAgent injetou o JavaScript de RUM no HTML servido pelo
+  processo Node. Sem ele somem tambem **Experience Vitals** e **Session
+  Replay** -- uma das telas previstas no bloco 3;
+- visibilidade de codigo (hotspot por metodo) e a ligacao automatica
+  processo → container → pod → no' → host no Smartscape;
+- a linha de base automatica por endpoint, que e' o insumo do Davis.
+
+**E a razao pedagogica, que e' a mais forte:** a aula 2 ja' foi
+OpenTelemetry puro -- Tempo, span metrics no Prometheus, Loki. Se a aula 3
+tambem for OTel puro, ela vira a aula 2 com outro backend, e a comparacao
+que justifica as tres aulas perde o sentido. A diferenca que vale ensinar e'
+justamente: o que o agente proprietario entrega sem ninguem configurar, e o
+que o OTel entrega que agente nenhum entrega.
+
+**Quando "tudo via OTel" E' a resposta certa:** quando portabilidade e
+capacidade de troca de fornecedor pesam mais que profundidade (preocupacao
+legitima numa instituicao financeira); quando a linguagem nao e' coberta
+pelo agente; quando voce precisa controlar amostragem e cardinalidade; ou
+quando a mesma telemetria precisa alimentar mais de um destino.
+
+O arranjo que ficou no laboratorio tem um ganho que nao estava no plano: os
+**dois modelos convivem no mesmo sistema e na mesma tela**. `ui` e
+`customer-auth` chegam pelo OneAgent; `dashboard`, `accounts`,
+`transactions` e `loan` chegam por OTLP. Da' para comparar os dois caminhos
+lado a lado, com a mesma requisicao -- o que nenhuma das duas aulas
+anteriores podia fazer.
+
 ### 7.1 Novidade de verdade — vale tempo de aula
 
 | Ordem | Tela | Por que e' novo | Pronto hoje? |
