@@ -57,6 +57,7 @@ para uma instituição financeira.
 | Criar o cluster e instalar o Istio | scripts do ambiente do LAB (`environment/config/{shift,eks}/`) — **outro repositório, não alterado aqui** |
 | Subir a aplicação | `bash k8s/run-lab-k8s.sh` |
 | Instalar o Dynatrace | `k8s/dynatrace/README.md` |
+| Preparar as telas de AIOps | `k8s/dynatrace/telas.md` — **SLO, detector de anomalia, Guardian e Workflow precisam existir antes do game day** |
 | **Republicar a imagem da UI** | **uma vez**, antes da primeira aula — ver abaixo |
 | **Carga** | sobe junto com o `run-lab-k8s.sh` (`k8s/app/90-stress-carga.yaml`) — **confira que está rodando** |
 | Conferir o sidecar | `kubectl -n fiap-bank get pods` — todo pod **2/2**, menos o `mongodb` (1/1 de propósito) |
@@ -323,7 +324,7 @@ k8s/
 ├── caos.sh                    injeta falha e divide carga pela malha
 ├── app/                       manifests do FIAP Bank (00 a 50)
 ├── istio/                     gateway, subsets, canary, caos, resiliência
-└── dynatrace/                 dynakube.yaml, instalação e consultas DQL
+└── dynatrace/                 dynakube.yaml, instalação, telas (AIOps) e DQL
 
 A carga (`app/90-stress-carga.yaml`) sobe junto com a aplicação: `curl` em laço,
 três réplicas, sem imagem para construir. Os cenários completos de negócio
