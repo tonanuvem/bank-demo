@@ -233,14 +233,20 @@ O arranjo que ficou no laboratorio tem um ganho que nao estava no plano: os
 lado a lado, com a mesma requisicao -- o que nenhuma das duas aulas
 anteriores podia fazer.
 
-### 7.1 Novidade de verdade — vale tempo de aula
+### 7.1 As CINCO telas da aula, em ordem de acontecimento
 
-| Ordem | Tela | Por que e' novo | Pronto hoje? |
-|---|---|---|---|
-| 1 | **Problems** (Davis) | correlacao e causa raiz sem ninguem escrever regra. Nas aulas 1 e 2 todo alerta foi configurado a mao | so' com o caos |
-| 2 | **Site Reliability Guardian** | nao e' painel, e' **decisao**: aprova ou reprova uma versao. Nenhuma aula anterior teve um portao automatico | sim |
-| 3 | **Workflows** | fecha o laco: problema → acao. Observabilidade que *faz*, nao so' mostra | sim |
-| 4 | **Anomaly Detection** | limiar que se adapta ao padrao aprendido, contra o limiar fixo do Prometheus | sim |
+| # | Tela | Por que ela, e nao outra |
+|---|---|---|
+| 1 | **Problems** (Davis) | correlacao e causa raiz sem ninguem escrever regra. Nas aulas 1 e 2 todo alerta foi configurado a mao |
+| 2 | **Site Reliability Guardian** | nao e' painel, e' **decisao**: aprova ou reprova uma versao. Nenhuma aula anterior teve portao automatico |
+| 3 | **Workflows** | fecha o laco: problema → acao. Observabilidade que *faz*, nao so' mostra |
+| 4 | **Distributed Tracing → Service flow** | OneAgent e OpenTelemetry na MESMA jornada -- agente proprietario contra padrao aberto, com evidencia em vez de slide |
+| 5 | **Kubernetes → Recommendations** | a unica que funciona sem caos nenhum, e carrega o caso real do OOM da UI deste laboratorio |
+
+Fora da lista de proposito: **Anomaly Detection** e' otimo conceitualmente
+(limiar que aprende, contra o limiar fixo do Prometheus), mas o proprio app
+avisa que sera' descontinuado no fim do ano -- material montado em cima disso
+envelhece em semanas. Se quiser usar, monte pela Settings.
 
 ### 7.2 Novidade parcial — um minuto cada, de passagem
 
@@ -277,3 +283,90 @@ funciona se Guardian e Workflow existirem **antes** do caos.
   namespace saturation** sobre o `fiap-bank` e' o que funciona sem nenhuma
   integracao de pipeline; **Four golden signals** e' o que casa com o canary
   do bloco 5.
+
+---
+
+## 8. O que ja' esta pronto e o que voce precisa construir
+
+A duvida mais pratica, respondida com o que foi verificado neste tenant.
+
+### 8.1 Pronto, sem configurar nada
+
+Tudo abaixo existe pelo simples fato de o agente estar instalado e a carga
+rodando. Nao ha o que criar:
+
+| Tela | O que ja' mostra |
+|---|---|
+| **Kubernetes → Explorer** | cluster, nos, namespaces, workloads |
+| **Kubernetes → Recommendations** | sugestao de CPU e memoria por workload (precisa de algumas horas de dado) |
+| **Smartscape** | topologia; Service dependency graph com as chamadas entre servicos |
+| **Services** | cada processo como servico proprio |
+| **Distributed Tracing** | requisicoes, duracao, percentis, filtro por namespace e workload |
+| **Logs** | log de todo container, com facetas por workload sem indice nem schema |
+| **Experience Vitals** | existe porque o OneAgent injetou RUM na UI (a entidade "My web application") |
+| **Problems** | o app esta la'; o CARD so' aparece quando houver anomalia |
+
+### 8.2 Precisa construir — e e' pouco
+
+Tres coisas, todas pela interface, todas antes do game day.
+
+**a) Site Reliability Guardian** (tela 2 da aula)
+
+1. App **Site Reliability Guardian** → *Create guardian*
+2. Na caixa de templates, escolha **Four golden signals**
+3. Em cada objetivo, troque a entidade pelo servico `transactions`
+4. Salve com um nome que o aluno reconheca, ex. `transactions-v2`
+5. Rode uma vez com a carga saudavel: tem que **passar**. Esse e' o
+   "antes" da comparacao
+6. No bloco 5, rode de novo durante o `caos.sh canary 20`: tem que **reprovar**
+
+Se os objetivos do template nao encontrarem dado, use o template
+**Kubernetes namespace saturation** sobre o `fiap-bank` -- ele funciona sem
+nenhuma integracao de pipeline.
+
+**b) Workflow** (tela 3 da aula)
+
+1. App **Workflows** → *Create workflow from template*
+2. Escolha **Auto-Annotate K8s Pods based on Problem Events**
+3. No gatilho, restrinja ao namespace `fiap-bank`
+4. Salve e deixe ligado
+5. No game day, depois do card do Davis, mostre o resultado no cluster:
+   `kubectl -n fiap-bank describe pod <pod> | grep -i annotation`
+
+O ponto nao e' a anotacao em si: e' ver detecao virar acao sem humano.
+
+**c) Linha de base para o Davis** (tela 1 da aula)
+
+Nao se constroi clicando -- se constroi ESPERANDO. O Davis precisa de 30 a 40
+minutos de carga saudavel gravada antes do caos. Sem isso ele nao tem contra o
+que comparar e nao abre problema nenhum.
+
+Confira que a carga esta limpa antes de comecar a contar:
+
+```
+kubectl -n fiap-bank logs -l app=stress-carga --since=120s | grep -c HTTP
+```
+
+Zero e' o numero certo: a carga so' registra o que nao e' 2xx.
+
+### 8.3 O que NAO precisa construir, ao contrario do que parece
+
+- **Dashboard**: as telas prontas ja' respondem o que a aula pergunta. Montar
+  painel e' repetir a aula 2.
+- **SLO**: so' e' necessario se voce quiser mostrar error budget queimando.
+  Como isso ja' foi feito no Splunk e no Grafana, fica fora -- mas entao nao
+  prometa a tela de SLO queimando no roteiro.
+- **Detector de anomalia**: o Davis ja' detecta sozinho. Um detector proprio
+  so' entra se voce quiser falar de limiar auto-adaptativo.
+
+### 8.4 Se o Davis nao abrir problema no game day
+
+Acontece, e nao e' falha de instalacao: pode faltar linha de base, ou a
+anomalia pode nao passar do limiar que o Davis aprendeu. Plano B, na ordem:
+
+1. aumente a dose -- `caos.sh abort 503 50` em vez de 20;
+2. deixe rodar mais tempo antes de concluir;
+3. se ainda assim nao abrir, a propria ausencia e' material de aula: o Davis
+   decide o que e' problema a partir do que aprendeu, e isso tem lado bom e
+   lado ruim. Compare com o alerta do Prometheus, que dispara sempre que o
+   numero cruza a linha, sem perguntar se aquilo e' normal naquele horario.
