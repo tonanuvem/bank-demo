@@ -36,6 +36,14 @@ spec:
             - configMapRef: { name: fiap-bank-config }
           env:
             - { name: OTEL_SERVICE_NAME, value: dashboard }
+            # OTel RELIGADO -- so' nos servicos Python. Ver telas.md secao 7:
+            # o code module do OneAgent instrumenta Node sozinho e NAO
+            # instrumenta Python, entao aqui a instrumentacao tem que vir do
+            # OpenTelemetry. O coletor e' o proprio DynaKube:
+            #   kubectl -n dynatrace get svc telemetry-ingest
+            - { name: OTEL_SDK_DISABLED, value: "false" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://telemetry-ingest.dynatrace:4317" }
+            - { name: OTEL_EXPORTER_OTLP_PROTOCOL, value: "grpc" }
             # false mantem o SyntaxError do frontend, que e' material da aula 1.
             # Em true, a falha responde JSON 503 limpo.
             - { name: ERROS_AMIGAVEIS, value: "false" }

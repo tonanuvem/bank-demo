@@ -84,6 +84,21 @@ data:
   #      vamos usar para comparar com o Loki da aula 2.
   #
   # OTEL_SDK_DISABLED=true desliga o SDK no arranque e resolve os dois.
+  #
+  # MAS ISSO VALE SO' PARA NODE -- medido no tenant, depois de uma hora de
+  # carga. O code module do OneAgent instrumenta Node automaticamente e NAO
+  # instrumenta Python: com o SDK desligado, `dashboard`, `accounts`,
+  # `transactions` e `loan` sumiram inteiros do Distributed Tracing, e o
+  # Service dependency graph ficou com dois servicos.
+  #
+  # Por isso os cinco Deployments Python sobrescrevem este valor para "false"
+  # e exportam para o coletor que o proprio DynaKube sobe
+  # (telemetry-ingest.dynatrace:4317). Os dois servicos Node continuam aqui,
+  # desligados, com o OneAgent fazendo o trabalho.
+  #
+  # O arranjo hibrido nao e' remendo, e' o caso real: o agente proprietario
+  # cobre as linguagens que cobre, e o OpenTelemetry -- o mesmo das aulas 1
+  # e 2 -- preenche o resto, com tudo chegando no mesmo backend.
   # O wrapper continua no entrypoint, apenas nao faz nada.
   #
   # Para LIGAR o OTel apontando para o Dynatrace (exercicio opcional do

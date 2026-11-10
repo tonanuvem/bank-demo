@@ -56,6 +56,14 @@ spec:
             - configMapRef: { name: fiap-bank-config }
           env:
             - { name: OTEL_SERVICE_NAME, value: accounts }
+            # OTel RELIGADO -- so' nos servicos Python. Ver telas.md secao 7:
+            # o code module do OneAgent instrumenta Node sozinho e NAO
+            # instrumenta Python, entao aqui a instrumentacao tem que vir do
+            # OpenTelemetry. O coletor e' o proprio DynaKube:
+            #   kubectl -n dynatrace get svc telemetry-ingest
+            - { name: OTEL_SDK_DISABLED, value: "false" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://telemetry-ingest.dynatrace:4317" }
+            - { name: OTEL_EXPORTER_OTLP_PROTOCOL, value: "grpc" }
           resources:
             requests: { memory: 128Mi, cpu: 50m }
             limits:   { memory: 512Mi, cpu: 500m }
@@ -100,6 +108,14 @@ spec:
             - configMapRef: { name: fiap-bank-config }
           env:
             - { name: OTEL_SERVICE_NAME, value: transactions }
+            # OTel RELIGADO -- so' nos servicos Python. Ver telas.md secao 7:
+            # o code module do OneAgent instrumenta Node sozinho e NAO
+            # instrumenta Python, entao aqui a instrumentacao tem que vir do
+            # OpenTelemetry. O coletor e' o proprio DynaKube:
+            #   kubectl -n dynatrace get svc telemetry-ingest
+            - { name: OTEL_SDK_DISABLED, value: "false" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://telemetry-ingest.dynatrace:4317" }
+            - { name: OTEL_EXPORTER_OTLP_PROTOCOL, value: "grpc" }
             # v1 e' a linha de base saudavel: sem atraso, sem falha.
             - { name: APP_VERSION,          value: "1.0.0" }
             - { name: ATRASO_ARTIFICIAL_MS, value: "0" }
@@ -148,6 +164,14 @@ spec:
             - configMapRef: { name: fiap-bank-config }
           env:
             - { name: OTEL_SERVICE_NAME, value: loan }
+            # OTel RELIGADO -- so' nos servicos Python. Ver telas.md secao 7:
+            # o code module do OneAgent instrumenta Node sozinho e NAO
+            # instrumenta Python, entao aqui a instrumentacao tem que vir do
+            # OpenTelemetry. O coletor e' o proprio DynaKube:
+            #   kubectl -n dynatrace get svc telemetry-ingest
+            - { name: OTEL_SDK_DISABLED, value: "false" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://telemetry-ingest.dynatrace:4317" }
+            - { name: OTEL_EXPORTER_OTLP_PROTOCOL, value: "grpc" }
           resources:
             requests: { memory: 128Mi, cpu: 50m }
             limits:   { memory: 512Mi, cpu: 500m }
