@@ -169,6 +169,34 @@ data:
         [ -n "$CONTA" ] && echo "[carga] conta encontrada: $CONTA"
       fi
 
+      # 4. caixas eletronicos (atm-locator -> mongodb)
+      #    atm-locator e' Node, instrumentado pelo OneAgent, enquanto o
+      #    dashboard e' Python, instrumentado por OpenTelemetry. Sem esta
+      #    chamada a carga exercita so' o lado OTel, e o grafo fica com uma
+      #    unica tecnologia -- justamente o contraste que a aula quer mostrar.
+      chamar atm -X POST "http://atm-locator:8001/api/atm/" \
+             -H 'Content-Type: application/json' \
+             -d '{"isOpenNow":false,"isInterPlaza":false}'
+
+      # 5. emprestimo (dashboard -> loan -> mongodb), 1 ciclo em 10
+      #    Sem esta chamada o loan fica de pe no cluster e INVISIVEL no
+      #    Dynatrace: la' um servico so' aparece quando alguem o chama, ao
+      #    contrario do Kiali, que desenha o pod exista trafego ou nao. E'
+      #    escrita, entao nao vai a cada ciclo.
+      if [ -n "$CONTA" ] && [ $((CICLO % 10)) -eq 0 ]; then
+        chamar emprestimo -X POST "$DASH/loan/" \
+               --data-urlencode "name=$NOME" \
+               --data-urlencode "email=$EMAIL" \
+               --data-urlencode "account_type=Checking" \
+               --data-urlencode "account_number=$CONTA" \
+               --data-urlencode "govt_id_type=CPF" \
+               --data-urlencode "govt_id_number=12345678900" \
+               --data-urlencode "loan_type=Personal" \
+               --data-urlencode "loan_amount=1000" \
+               --data-urlencode "interest_rate=5" \
+               --data-urlencode "time_period=12"
+      fi
+
       CICLO=$((CICLO + 1))
       [ $((CICLO % 60)) -eq 0 ] && echo "[carga] $CICLO ciclos, conta=${CONTA:-nenhuma}"
 
