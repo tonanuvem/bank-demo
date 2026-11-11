@@ -201,6 +201,16 @@ if [[ -n "$DK_AGENTES" ]]; then
         else
             echo "oneAgent já não está em applicationMonitoring."
         fi
+    else
+        # Passo opcional que NAO avisava que foi pulado. Sem esta linha, o
+        # script roda inteiro, imprime sucesso e deixa o cluster sem OneAgent
+        # de host -- e nao ha nada no output que explique por que. Medido:
+        # "por que a config de full-stack nao entrou?" depois de uma execucao
+        # limpa. Tinha entrado; nunca foi pedida.
+        echo "Full-stack NAO pedido (FULLSTACK=false): sem OneAgent de host."
+        echo "  Sem ele nao ha entidade Host, metrica de no, evento de OOM,"
+        echo "  nem a camada processo->host do Smartscape. Para ligar:"
+        echo "    curl -s <url-deste-script> | FULLSTACK=true bash"
     fi
 fi
 
