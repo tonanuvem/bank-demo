@@ -100,9 +100,33 @@ spec:
             # Preenchido pelo run-lab-k8s.sh com a URL do Gateway.
             # ---------------------------------------------------------------
             - { name: FIAP_API_BASE, value: "" }
-            # RUM: preencha para ligar o Real User Monitoring do Dynatrace
-            # (injecao automatica pelo OneAgent tambem funciona -- ver roteiro).
+            # RUM do Grafana (aula 2). Vazio = desligado.
             - { name: FARO_COLLECTOR_URL, value: "" }
+            # -----------------------------------------------------------------
+            # RUM DA DYNATRACE -- tem que ser manual, e o motivo importa.
+            #
+            # O OneAgent injeta o agente de RUM reescrevendo a resposta HTML do
+            # servidor web. Este container nao serve HTML estatico: roda o VITE
+            # EM MODO DEV, que o OneAgent nao instrumenta. Medido neste
+            # laboratorio, com o agente comprovadamente carregado no processo
+            # (liboneagentproc 5x em /proc/1/maps):
+            #
+            #   curl -D - -o /dev/null http://IP:30400/
+            #   -> 200, text/html, chunked, SEM Server-Timing e SEM x-dynatrace
+            #
+            # Sem Server-Timing nao ha injecao. E sem agente no navegador nao
+            # existe o salto navegador -> backend: a aplicacao web fica solta no
+            # Smartscape por mais que se navegue na tela.
+            #
+            # Copie a URL em <aplicacao web> > Settings > Instrumentation >
+            # JavaScript tag > Manual insertion:
+            #   https://<tenant>.live.dynatrace.com/jstag/<hash>/<appId>_complete.js
+            #
+            # ATENCAO: a imagem precisa conter a versao do
+            # ui/otel-rum-entrypoint.sh que le esta variavel. Se a sua for
+            # anterior, reconstrua e publique antes.
+            # -----------------------------------------------------------------
+            - { name: DT_RUM_SRC, value: "" }
           # O pod demora para atender: o vite transpila os modulos sob demanda
           # na primeira requisicao. Sem readiness probe o Service manda
           # trafego para um pod que ainda nao escuta, e o Envoy responde

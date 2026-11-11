@@ -118,6 +118,58 @@ SNIPPET
 fi
 
 
+
+# ---------------------------------------------------------------------------
+# DYNATRACE RUM -- terceiro fornecedor, mesmo mecanismo.
+#
+# POR QUE MANUAL, se o OneAgent injeta RUM sozinho:
+# o OneAgent injeta reescrevendo a resposta HTML do servidor web. Aqui o
+# servidor e' o vite em modo DEV, e ele nao e' instrumentado. Medido neste
+# laboratorio, com o OneAgent comprovadamente carregado no processo
+# (liboneagentproc aparece 5x em /proc/1/maps do container da ui):
+#
+#   $ curl -D - -o /dev/null http://IP:30400/
+#   HTTP/1.1 200 OK
+#   content-type: text/html
+#   transfer-encoding: chunked
+#   ...sem Server-Timing, sem x-dynatrace
+#
+# Sem Server-Timing na resposta nao ha injecao automatica, e sem agente no
+# navegador nao existe o salto navegador -> backend no Service flow: a
+# aplicacao web aparece solta no Smartscape, por mais que se navegue na tela.
+#
+#   DT_RUM_SRC  URL do agente, copiada do tenant em
+#               <aplicacao web> > Settings > Instrumentation > JavaScript tag
+#               > Manual insertion. Tem este formato:
+#               https://<tenant>.live.dynatrace.com/jstag/<hash>/<appId>_complete.js
+#
+# Nao e' preciso configurar propagacao: o RUM da Dynatrace ja' manda
+# traceparent em XHR e fetch de MESMA ORIGEM por padrao, e no LAB 3 tudo
+# entra por :30400 (ver FIAP_API_BASE abaixo). Isso vale tambem para os
+# servicos Python instrumentados por OpenTelemetry.
+# ---------------------------------------------------------------------------
+
+DT_RUM_SRC="${DT_RUM_SRC:-}"
+
+if [ -z "$DT_RUM_SRC" ]; then
+  echo "[dynatrace-rum] DT_RUM_SRC vazio - RUM da Dynatrace desabilitado."
+elif grep -q "DT-RUM-START" "$INDEX" 2>/dev/null; then
+  echo "[dynatrace-rum] snippet ja presente em $INDEX - nada a fazer."
+else
+  echo "[dynatrace-rum] injetando agente em $INDEX"
+
+  cat > /tmp/dt-snippet.html <<SNIPPET
+    <!-- DT-RUM-START (injetado por otel-rum-entrypoint.sh) -->
+    <script src="${DT_RUM_SRC}" crossorigin="anonymous"></script>
+    <!-- DT-RUM-END -->
+SNIPPET
+
+  awk '/<\/head>/ && !done { while ((getline line < "/tmp/dt-snippet.html") > 0) print line; done=1 } { print }' \
+      "$INDEX" > /tmp/index.html.dt && cat /tmp/index.html.dt > "$INDEX"
+
+  echo "[dynatrace-rum] OK."
+fi
+
 # ---------------------------------------------------------------------------
 # PORTA DO DASHBOARD -- injetada em tempo de execucao, como o agente de RUM.
 # O apiUrls.js le window.__FIAP_API__.dashboard e cai para 5000 se nao houver.
