@@ -109,11 +109,30 @@ COLETOR=$(kubectl -n "$NAMESPACE" get statefulset -o name 2>/dev/null \
 if [[ -z "$COLETOR" ]]; then
     echo "Sem coletor OTLP neste cluster (telemetryIngest desligado)."
 else
+    # O passo 0 reinicia este StatefulSet. Sem esperar o rollout, a leitura
+    # cai num pod morrendo ou nascendo, o log vem vazio, o grep nao acha
+    # "Dropping data" -- e o script dizia OK. Ausencia de log nao e'
+    # ausencia de descarte.
+    kubectl -n "$NAMESPACE" rollout status "$COLETOR" --timeout="${TIMEOUT}s" || true
+    PRONTO=$(kubectl -n "$NAMESPACE" get "$COLETOR" \
+             -o jsonpath='{.status.readyReplicas}' 2>/dev/null || true)
+
     echo "Conferindo a entrega em $COLETOR (ultimos 10 min)..."
-    DESCARTES=$(kubectl -n "$NAMESPACE" logs "$COLETOR" --since=10m 2>/dev/null \
-                | grep "Dropping data" | tail -2 || true)
-    if [[ -z "$DESCARTES" ]]; then
-        echo "  OK: nenhum descarte. O dado esta chegando ao Dynatrace."
+    LOG=$(kubectl -n "$NAMESPACE" logs "$COLETOR" --since=10m 2>/dev/null || true)
+    LINHAS=$(printf '%s' "$LOG" | grep -c . || true)
+    DESCARTES=$(printf '%s\n' "$LOG" | grep "Dropping data" | tail -2 || true)
+
+    if [[ "${PRONTO:-0}" -lt 1 ]]; then
+        echo "  NAO CONFIRMADO: o coletor nao esta Ready. Enquanto ele nao"
+        echo "  subir, telemetry-ingest:4317 esta fora do ar e nada de OTLP"
+        echo "  chega ao Dynatrace:"
+        echo "    kubectl -n $NAMESPACE describe $COLETOR"
+    elif [[ "${LINHAS:-0}" -eq 0 ]]; then
+        echo "  NAO CONFIRMADO: coletor Ready, mas sem nenhuma linha de log."
+        echo "  Suba a aplicacao e confira de novo:"
+        echo "    kubectl -n $NAMESPACE logs $COLETOR --since=10m | grep 'Dropping data'"
+    elif [[ -z "$DESCARTES" ]]; then
+        echo "  OK: coletor Ready, $LINHAS linha(s) de log, nenhum descarte."
     else
         echo "  ATENCAO: o coletor esta DESCARTANDO dado."
         echo "$DESCARTES" \

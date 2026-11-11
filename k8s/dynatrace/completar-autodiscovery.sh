@@ -91,9 +91,16 @@ if [ -z "$COLETOR" ]; then
     echo "  nao ha coletor OTLP neste cluster (telemetryIngest desligado)."
 else
     echo "  $COLETOR"
-    ERROS=$(kubectl -n "$NS" logs "$COLETOR" --since=10m 2>/dev/null | grep "Dropping data" | tail -4)
-    if [ -z "$ERROS" ]; then
-        echo "  nenhum descarte nos ultimos 10 min -- o dado esta chegando."
+    PRONTO=$(kubectl -n "$NS" get "$COLETOR" -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
+    LOG=$(kubectl -n "$NS" logs "$COLETOR" --since=10m 2>/dev/null)
+    LINHAS=$(printf '%s' "$LOG" | grep -c .)
+    ERROS=$(printf '%s\n' "$LOG" | grep "Dropping data" | tail -4)
+    if [ "${PRONTO:-0}" -lt 1 ]; then
+        aviso "o coletor NAO esta Ready -- telemetry-ingest:4317 esta fora do ar."
+    elif [ "${LINHAS:-0}" -eq 0 ]; then
+        aviso "coletor Ready, mas sem log nos ultimos 10 min: nada a confirmar."
+    elif [ -z "$ERROS" ]; then
+        echo "  coletor Ready, $LINHAS linha(s), nenhum descarte -- o dado esta chegando."
     else
         aviso "o coletor esta DESCARTANDO dado. Motivo, direto do log:"
         echo "$ERROS" | sed 's/.*"otelcol.signal": "\([a-z]*\)".*"error": "\([^"]*\)".*"dropped_items": \([0-9]*\).*/    \1: \3 descartados -- \2/' | cut -c1-200
