@@ -25,7 +25,9 @@
 # =============================================================================
 
 NS_APP="${NS_APP:-fiap-bank}"     # namespace da aplicacao a reinjetar
-FULLSTACK="${FULLSTACK:-false}"   # true migra para cloudNativeFullStack
+# Full-stack ligado por padrao: sobe DaemonSet de OneAgent (1 pod por no) e
+# REINICIA os pods da aplicacao. Desligue com FULLSTACK=false.
+FULLSTACK="${FULLSTACK:-true}"
 
 echo "=========================================="
 echo " Pos-instalacao: agentes, injecao e entrega"
