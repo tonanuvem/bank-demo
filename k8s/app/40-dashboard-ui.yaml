@@ -84,7 +84,9 @@ spec:
     spec:
       containers:
         - name: ui
-          image: tonanuvem/fiap-bank-ui-otel:lab
+          # Tag separada de proposito: a :lab continua sendo a imagem do
+          # vite em modo dev, intacta, para nao quebrar quem ja' usa.
+          image: tonanuvem/fiap-bank-ui-otel:lab-estatico
           imagePullPolicy: Always
           ports:
             - { name: http-ui, containerPort: 3000 }
@@ -103,50 +105,53 @@ spec:
             # RUM do Grafana (aula 2). Vazio = desligado.
             - { name: FARO_COLLECTOR_URL, value: "" }
             # -----------------------------------------------------------------
-            # RUM DA DYNATRACE -- tem que ser manual, e o motivo importa.
+            # RUM DA DYNATRACE -- nao precisa preencher nada.
             #
-            # O OneAgent injeta o agente de RUM reescrevendo a resposta HTML do
-            # servidor web. Este container nao serve HTML estatico: roda o VITE
-            # EM MODO DEV, que o OneAgent nao instrumenta. Medido neste
-            # laboratorio, com o agente comprovadamente carregado no processo
-            # (liboneagentproc 5x em /proc/1/maps):
+            # Com esta imagem (build estatico), o OneAgent injeta o agente de
+            # navegador SOZINHO. Verificado neste cluster, pelo Gateway, com o
+            # sidecar do Istio no lugar:
             #
-            #   curl -D - -o /dev/null http://IP:30400/
-            #   -> 200, text/html, chunked, SEM Server-Timing e SEM x-dynatrace
+            #   x-oneagent-js-injection: true
+            #   x-ruxit-js-agent: true
+            #   server-timing: dtTrId;desc="..."
+            #   <script src="/ruxitagentjs_ICA15789..._10349261020121938.js"
+            #           data-dtconfig="...app=ea7c4b59f27d43eb...">
             #
-            # Sem Server-Timing nao ha injecao. E sem agente no navegador nao
-            # existe o salto navegador -> backend: a aplicacao web fica solta no
-            # Smartscape por mais que se navegue na tela.
+            # Com a imagem :lab (vite em modo dev) isso NAO acontece: a mesma
+            # pagina volta sem Server-Timing e sem script, mesmo com o agente
+            # carregado no processo. O vite dev monta o HTML a cada requisicao
+            # e o OneAgent nao reescreve essa resposta.
             #
-            # Copie a URL em <aplicacao web> > Settings > Instrumentation >
-            # JavaScript tag > Manual insertion:
-            #   https://<tenant>.live.dynatrace.com/jstag/<hash>/<appId>_complete.js
+            # ARMADILHA DE TESTE: a Dynatrace nao injeta para cliente que nao
+            # e' navegador. `curl` sem User-Agent de navegador devolve a pagina
+            # LIMPA e parece que nada funciona. Para conferir pela linha de
+            # comando, mande um UA de navegador:
+            #   curl -A "Mozilla/5.0 ... Chrome/131 ..." http://IP:30400/ \
+            #     | grep -c ruxitagentjs
             #
-            # ATENCAO: a imagem precisa conter a versao do
-            # ui/otel-rum-entrypoint.sh que le esta variavel. Se a sua for
-            # anterior, reconstrua e publique antes.
+            # DT_RUM_SRC fica como alternativa manual (URL em <aplicacao web> >
+            # Settings > Instrumentation > JavaScript tag > Manual insertion),
+            # para o caso de a injecao automatica nao valer no seu ambiente.
             # -----------------------------------------------------------------
             - { name: DT_RUM_SRC, value: "" }
-          # O pod demora para atender: o vite transpila os modulos sob demanda
-          # na primeira requisicao. Sem readiness probe o Service manda
-          # trafego para um pod que ainda nao escuta, e o Envoy responde
-          # "no healthy upstream" -- que parece falha de malha e e' so' espera.
-          # Com a probe, o rollout do script tambem passa a esperar de verdade.
+          # Servindo estatico o processo atende em menos de um segundo. Os 3
+          # minutos de tolerancia que estavam aqui existiam porque o vite dev
+          # compilava a aplicacao inteira na primeira requisicao.
           readinessProbe:
             httpGet: { path: /, port: 3000 }
-            initialDelaySeconds: 10
+            initialDelaySeconds: 3
             periodSeconds: 5
             timeoutSeconds: 3
-            failureThreshold: 36          # ate' 3 min para o primeiro boot
-          # ATENCAO AOS LIMITES. Este container nao serve arquivos estaticos:
-          # ele roda o VITE EM MODO DEV, que e' Node mais esbuild e e' o
-          # processo mais pesado do laboratorio. Com os 256Mi que estavam aqui
-          # o kernel matava o processo por OOM assim que o aluno navegava umas
-          # poucas telas, o pod reiniciava e a UI respondia 503 em laco --
-          # sem erro na aplicacao, porque quem mata e' o cgroup.
+            failureThreshold: 10
+          # Agora serve arquivos estaticos: medido neste cluster, o container
+          # usa 52Mi com a carga rodando. O 1Gi que estava aqui existia por
+          # causa do vite em modo dev, que e' Node mais esbuild e era o
+          # processo mais pesado do laboratorio -- com 256Mi o kernel o matava
+          # por OOM e o Envoy respondia "no healthy upstream", sintoma que
+          # aponta para a malha e cuja causa estava no cgroup.
           resources:
-            requests: { memory: 256Mi, cpu: 200m }
-            limits:   { memory: 1Gi,   cpu: 1000m }
+            requests: { memory: 96Mi,  cpu: 50m }
+            limits:   { memory: 256Mi, cpu: 500m }
 ---
 apiVersion: v1
 kind: Service

@@ -1,24 +1,62 @@
-# Martian Bank - UI (React/Vite) + Splunk RUM (browser agent)
+# Martian Bank - UI (React/Vite) construida e servida como ESTATICA.
 #   docker build -f ui/Dockerfile-otel -t martian-bank-ui-otel ./ui
 #
-# O RUM e' 100% client-side: o navegador envia os spans DIRETO para
-# https://rum-ingest.<realm>.observability.splunkcloud.com/v1/rum.
-# Ele NAO passa pelo collector da EC2 - logo nao depende de 4317/4318.
+# POR QUE NAO O VITE EM MODO DEV, que era o que esta imagem fazia antes:
 #
-# O token de RUM e' um token diferente do SPLUNK_ACCESS_TOKEN de ingest:
-# precisa ter o escopo "RUM token" (Settings > Access Tokens). Ele fica
-# publico no HTML por design - nunca use aqui o token de ingest/API.
+#   O OneAgent injeta o agente de RUM reescrevendo a resposta HTML do servidor.
+#   Com o vite dev isso NAO acontece. Medido no laboratorio, com o agente
+#   comprovadamente carregado no processo do vite (liboneagentproc no
+#   /proc/<pid>/maps e log proprio em ruxitagent_bin_vite.js...log):
+#
+#     curl -D - http://IP:30400/   ->  200, chunked, SEM Server-Timing,
+#                                      HTML sem nenhum script de agente
+#
+#   Servindo o mesmo HTML ja' pronto, com Content-Length, pelo mesmo processo
+#   Node e no mesmo pod, a injecao acontece sozinha:
+#
+#     X-OneAgent-JS-Injection: true
+#     X-ruxit-JS-Agent: true
+#     Server-Timing: dtTrId;desc="..."
+#     <script src="/ruxitagentjs_..." data-dtconfig="...app=ea7c4b59f27d43eb...">
+#
+#   Sem esse agente nao existe o salto navegador -> backend no Service flow, e
+#   a aplicacao web aparece solta no Smartscape por mais que se navegue.
+#
+# Ganhos de tabela, os dois medidos neste lab:
+#   - memoria: o vite dev precisava de 1Gi de limite, senao o kernel matava o
+#     processo por OOM e o Envoy respondia "no healthy upstream";
+#   - partida: em dev a primeira requisicao compilava tudo, e a readinessProbe
+#     precisava de ate' 3 minutos.
+#
+# O RUM do Splunk e o do Faro continuam disponiveis pelo entrypoint, para as
+# aulas 1 e 2. O token de RUM fica publico no HTML por design -- nunca use ali
+# um token de ingest ou de API.
+
+# ---- build ---------------------------------------------------------------
+FROM node:18.20.8-alpine AS build
+
+WORKDIR /bankapp
+COPY package.json package-lock.json ./
+RUN npm install --silent
+COPY . ./
+# O package.json de origem trazia "build": "npm run build", que chama a si
+# mesmo e nunca termina. Corrigido para "vite build" no proprio package.json.
+RUN npm run build
+
+# ---- runtime -------------------------------------------------------------
 FROM node:18.20.8-alpine
 
 WORKDIR /bankapp
 EXPOSE 3000
 
-COPY package.json package-lock.json ./
-RUN npm install --silent
-COPY . ./
+# So' o resultado do build e o servidor. Nada de node_modules no runtime: a
+# imagem final nao precisa de dependencia nenhuma, porque o servidor usa
+# apenas modulos nativos do Node.
+COPY --from=build /bankapp/dist ./dist
+COPY servidor-estatico.js /bankapp/servidor-estatico.js
 
 COPY otel-rum-entrypoint.sh /usr/local/bin/otel-rum-entrypoint.sh
 RUN chmod +x /usr/local/bin/otel-rum-entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/otel-rum-entrypoint.sh"]
-CMD ["npm", "run", "ui"]
+CMD ["node", "/bankapp/servidor-estatico.js"]

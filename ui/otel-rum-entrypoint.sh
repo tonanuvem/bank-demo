@@ -16,7 +16,14 @@
 # ---------------------------------------------------------------------------
 set -e
 
-INDEX="/bankapp/index.html"
+# A imagem agora serve o build de producao (dist/). O index.html que o
+# navegador recebe e' o de la', e e' nele que tudo abaixo injeta. O caminho
+# antigo fica como alternativa para quem ainda rode o vite em modo dev.
+if [ -f /bankapp/dist/index.html ]; then
+  INDEX="/bankapp/dist/index.html"
+else
+  INDEX="/bankapp/index.html"
+fi
 FARO_COLLECTOR_URL="${FARO_COLLECTOR_URL:-}"
 
 if [ -z "$SPLUNK_RUM_TOKEN" ]; then
